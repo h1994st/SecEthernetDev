@@ -273,27 +273,27 @@ static netdev_tx_t packet_netpoll_xmit(struct mitm *mitm, struct sk_buff *skb)
 }
 
 /* Taken out of net/packet/af_packet.c */
-static u16 __packet_pick_tx_queue(struct net_device *dev, struct sk_buff *skb)
+static u16 packet_pick_tx_queue(struct sk_buff *skb)
 {
-	return (u16) raw_smp_processor_id() % dev->real_num_tx_queues;
-}
-
-
-static void packet_pick_tx_queue(struct net_device *dev, struct sk_buff *skb)
-{
-	const struct net_device_ops *ops = dev->netdev_ops;
+    struct net_device *dev = skb->dev;
+    const struct net_device_ops *ops = dev->netdev_ops;
+    int cpu = raw_smp_processor_id();
 	u16 queue_index;
 
+#ifdef CONFIG_XPS
+    skb->sender_cpu = cpu + 1;
+#endif
+    skb_record_rx_queue(skb, cpu % dev->real_num_tx_queues);
 	if (ops->ndo_select_queue) {
-		queue_index = ops->ndo_select_queue(dev, skb, NULL,
-						    __packet_pick_tx_queue);
+		queue_index = ops->ndo_select_queue(dev, skb, NULL);
 		queue_index = netdev_cap_txqueue(dev, queue_index);
 	} else {
-		queue_index = __packet_pick_tx_queue(dev, skb);
+		queue_index = netdev_pick_tx(dev, skb, NULL);
 	}
 
-	skb_set_queue_mapping(skb, queue_index);
+	return queue_index;
 }
+
 static int __packet_direct_xmit(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
