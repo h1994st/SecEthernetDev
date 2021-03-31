@@ -294,68 +294,34 @@ static u16 packet_pick_tx_queue(struct sk_buff *skb)
 	return queue_index;
 }
 
+/*
+ * Taken out of net/packet/af_packet.c
+ * Original function: packet_direct_xmit
+ */
 static int __packet_direct_xmit(struct sk_buff *skb)
 {
-	struct net_device *dev = skb->dev;
-	struct sk_buff *orig_skb = skb;
-	struct netdev_queue *txq;
-	int ret = NETDEV_TX_BUSY;
-
-	if (unlikely(!netif_running(dev) || !netif_carrier_ok(dev)))
-		goto drop;
-
-	skb = validate_xmit_skb_list(skb, dev);
-	if (skb != orig_skb)
-		goto drop;
-
-	packet_pick_tx_queue(dev, skb);
-	txq = skb_get_tx_queue(dev, skb);
-
-	local_bh_disable();
-
-	HARD_TX_LOCK(dev, txq, smp_processor_id());
-	if (!netif_xmit_frozen_or_drv_stopped(txq))
-		ret = netdev_start_xmit(skb, dev, txq, false);
-	HARD_TX_UNLOCK(dev, txq);
-
-	local_bh_enable();
-
-	if (!dev_xmit_complete(ret))
-		kfree_skb(skb);
-
-	return ret;
-drop:
-	atomic_long_inc(&dev->tx_dropped);
-	kfree_skb_list(skb);
-	return NET_XMIT_DROP;
+    return dev_direct_xmit(skb, packet_pick_tx_queue(skb));
 }
 
 /*-------------------------- Bonding Notification ---------------------------*/
-
-static int mitm_master_upper_dev_link(struct mitm *mitm, struct slave *slave)
+/* Taken out of net/bonding/bond_main.c */
+static int mitm_master_upper_dev_link(struct mitm *mitm, struct slave *slave,
+                                      struct netlink_ext_ack *extack)
 {
-	int err;
-	/* we aggregate everything into one link, so that's technically a broadcast */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)
-	struct netdev_lag_upper_info lag_upper_info = {
-		.tx_type = NETDEV_LAG_TX_TYPE_BROADCAST
-	};
+    /* we aggregate everything into one link, so that's technically a broadcast */
+    struct netdev_lag_upper_info lag_upper_info = {
+            .tx_type = NETDEV_LAG_TX_TYPE_BROADCAST,
+            .hash_type = NETDEV_LAG_HASH_NONE
+    };
 
-	err = netdev_master_upper_dev_link(slave->dev, mitm->dev, slave, &lag_upper_info);
-#else
-	err = netdev_master_upper_dev_link(slave->dev, mitm->dev);
-#endif
-	if (err)
-		return err;
-	rtmsg_ifinfo(RTM_NEWLINK, slave->dev, IFF_SLAVE, GFP_KERNEL);
-	return 0;
+    return netdev_master_upper_dev_link(slave->dev, mitm->dev, slave,
+                                        &lag_upper_info, extack);
 }
 
 static void mitm_upper_dev_unlink(struct mitm *mitm, struct slave *slave)
 {
 	netdev_upper_dev_unlink(slave->dev, mitm->dev);
 	slave->dev->flags &= ~IFF_SLAVE;
-	rtmsg_ifinfo(RTM_NEWLINK, slave->dev, IFF_SLAVE, GFP_KERNEL);
 }
 /* FIXME unused */
 #if 0
@@ -376,13 +342,21 @@ static void bond_lower_state_changed(struct slave *slave)
  *
  * Should be called with RTNL held.
  */
-static void mitm_set_dev_addr(struct net_device *mitm_dev, struct net_device *slave_dev)
+static int mitm_set_dev_addr(struct net_device *mitm_dev,
+                             struct net_device *slave_dev)
 {
+    int err;
+
 	netdev_dbg(mitm_dev, "mitm_dev=%p slave_dev=%p slave_dev->name=%s slave_dev->addr_len=%d\n",
 		   mitm_dev, slave_dev, slave_dev->name, slave_dev->addr_len);
+	err = dev_pre_changeaddr_notify(mitm_dev, slave_dev->dev_addr, NULL);
+	if (err)
+	    return err;
+
 	memcpy(mitm_dev->dev_addr, slave_dev->dev_addr, slave_dev->addr_len);
 	mitm_dev->addr_assign_type = NET_ADDR_STOLEN;
 	call_netdevice_notifiers(NETDEV_CHANGEADDR, mitm_dev);
+	return 0;
 }
 
 /* Set carrier state of master on if there's a slave
@@ -413,8 +387,8 @@ static int mitm_set_carrier(struct mitm *mitm)
 
 /*--------------------------------- Slavery ---------------------------------*/
 
-static int mitm_enslave(struct net_device *mitm_dev,
-			struct net_device *slave_dev)
+static int mitm_enslave(struct net_device *mitm_dev, struct net_device *slave_dev,
+                        struct netlink_ext_ack *extack)
 {
 	struct mitm *mitm = netdev_priv(mitm_dev);
 	int res = 0;
@@ -448,6 +422,7 @@ static int mitm_enslave(struct net_device *mitm_dev,
 	 * enslaving it; the old ifenslave will not.
 	 */
 	if (slave_dev->flags & IFF_UP) {
+	    NL_SET_ERR_MSG(extack, "Device can not be enslaved while up");
 		netdev_err(mitm_dev, "%s is up - this may be due to an out of date ifenslave\n",
 			   slave_dev->name);
 		return -EPERM;
@@ -455,7 +430,11 @@ static int mitm_enslave(struct net_device *mitm_dev,
 
 	call_netdevice_notifiers(NETDEV_JOIN, slave_dev);
 
-	mitm_set_dev_addr(mitm->dev, slave_dev);
+	res = mitm_set_dev_addr(mitm->dev, slave_dev);
+	if (res) {
+        netdev_err(mitm_dev, "Setting dev address failed\n");
+	    goto err_unslave;
+	}
 
 	mitm->slave.dev = slave_dev;
 
@@ -463,7 +442,7 @@ static int mitm_enslave(struct net_device *mitm_dev,
 	slave_dev->flags |= IFF_SLAVE;
 
 	/* open the slave since the application closed it */
-	res = dev_open(slave_dev);
+	res = dev_open(slave_dev, extack);
 	if (res) {
 		netdev_err(mitm_dev, "Opening slave %s failed\n", slave_dev->name);
 		goto err_unslave;
@@ -471,38 +450,39 @@ static int mitm_enslave(struct net_device *mitm_dev,
 
 	slave_dev->priv_flags |= IFF_BONDING;
 
-	/* set promiscuity level to new slave */
-	if (mitm_dev->flags & IFF_PROMISC) {
-		res = dev_set_promiscuity(slave_dev, 1);
-		if (res)
-			goto err_close;
-	}
-
-	/* set allmulti level to new slave */
-	if (mitm_dev->flags & IFF_ALLMULTI) {
-		res = dev_set_allmulti(slave_dev, 1);
-		if (res)
-			goto err_close;
-	}
-
-	netif_addr_lock_bh(mitm_dev);
-
-	dev_mc_sync_multiple(slave_dev, mitm_dev);
-	dev_uc_sync_multiple(slave_dev, mitm_dev);
-
-	netif_addr_unlock_bh(mitm_dev);
-
 	res = netdev_rx_handler_register(slave_dev, mitm_handle_frame, mitm);
 	if (res) {
 		netdev_err(mitm_dev, "Error %d calling netdev_rx_handler_register\n", res);
-		goto err_detach;
+		goto err_close;
 	}
 
-	res = mitm_master_upper_dev_link(mitm, &mitm->slave);
+	res = mitm_master_upper_dev_link(mitm, &mitm->slave, extack);
 	if (res) {
 		netdev_err(mitm_dev, "Error %d calling mitm_master_upper_dev_link\n", res);
 		goto err_unregister;
 	}
+
+    /* set promiscuity level to new slave */
+    if (mitm_dev->flags & IFF_PROMISC) {
+        res = dev_set_promiscuity(slave_dev, 1);
+        if (res)
+            goto err_upper_unlink;
+    }
+
+    /* set allmulti level to new slave */
+    if (mitm_dev->flags & IFF_ALLMULTI) {
+        res = dev_set_allmulti(slave_dev, 1);
+        if (res) {
+            if (slave_dev->flags & IFF_PROMISC)
+                dev_set_promiscuity(slave_dev, -1);
+            goto err_upper_unlink;
+        }
+    }
+
+    netif_addr_lock_bh(mitm_dev);
+    dev_mc_sync_multiple(slave_dev, mitm_dev);
+    dev_uc_sync_multiple(slave_dev, mitm_dev);
+    netif_addr_unlock_bh(mitm_dev);
 
 	mitm_set_carrier(mitm);
 
@@ -511,11 +491,13 @@ static int mitm_enslave(struct net_device *mitm_dev,
 	return 0;
 
 	/* Undo stages on error */
-err_unregister:
+err_upper_unlink:
 	mitm_upper_dev_unlink(mitm, &mitm->slave);
+
+err_unregister:
 	netdev_rx_handler_unregister(slave_dev);
 
-err_detach:
+//err_detach:
 err_close:
 	slave_dev->priv_flags &= ~IFF_BONDING;
 	dev_close(slave_dev);
@@ -698,7 +680,7 @@ static ssize_t debugfs_set_slave(struct file *file, const char __user *buff,
 		netdev_info(slave_dev, "You want to enslave %s (%s)?\n",
 		       ifname, slave_dev->name);
 
-		ret = mitm_enslave(mitm_dev, slave_dev);
+		ret = mitm_enslave(mitm_dev, slave_dev, NULL);
 		if (ret)
 			goto unlock;
 
@@ -748,8 +730,6 @@ static const struct file_operations slave_fops = {
 
 /*---------------------------- Module init/fini -----------------------------*/
 static struct net_device *mitm_dev;
-
-
 
 int __init mitm_init_module(void)
 {
@@ -804,7 +784,7 @@ void __exit mitm_exit_module(void)
 	mitm_emancipate(mitm_dev, NULL);
 	rtnl_unlock();
 	unregister_netdev(mitm_dev);
-	pr_info("Exiting module\n");
+	pr_info("Exiting mitm module\n");
 }
 
 module_init(mitm_init_module);
