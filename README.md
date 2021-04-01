@@ -41,3 +41,9 @@ At the network namespace of the container:
 ```bash
 ip link set dev eth0 up
 ```
+
+References:
+
+- https://dev.to/polarbit/how-docker-container-networking-works-mimic-it-using-linux-network-namespaces-9mj
+- https://zhuanlan.zhihu.com/p/346440595
+- https://www.cnblogs.com/evan-liang/p/12271468.html
