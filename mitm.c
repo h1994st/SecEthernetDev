@@ -128,7 +128,8 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
 			struct icmphdr *icmph = (struct icmphdr *)ip_payload;
 			// If ping request...
 			if (icmph->type == ICMP_ECHO) {
-				__be32 tmp;
+			    __be32 tmp;
+                netdev_info(mitm->dev, "Intercept PING request\n");
 				// Swap ETH addresses.
 				eth_swap_addr(skb);
 				// Swap IP addresses.
@@ -239,6 +240,7 @@ static netdev_tx_t mitm_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	return NETDEV_TX_OK;
 }
+
 static inline netdev_tx_t __packet_xmit_irq_enabled(netdev_tx_t (*xmit)(struct sk_buff *), struct sk_buff *skb)
 {
 	netdev_tx_t ret;
@@ -252,6 +254,7 @@ static inline netdev_tx_t __packet_xmit_irq_enabled(netdev_tx_t (*xmit)(struct s
 
 	return ret;
 }
+
 static netdev_tx_t packet_queue_xmit(struct mitm *mitm, struct sk_buff *skb)
 {
 	BUILD_BUG_ON(sizeof(skb->queue_mapping) !=
@@ -260,10 +263,12 @@ static netdev_tx_t packet_queue_xmit(struct mitm *mitm, struct sk_buff *skb)
 
 	return __packet_xmit_irq_enabled(dev_queue_xmit, skb);
 }
+
 static netdev_tx_t packet_direct_xmit(struct mitm *mitm, struct sk_buff *skb)
 {
 	return __packet_xmit_irq_enabled(__packet_direct_xmit, skb);
 }
+
 static netdev_tx_t packet_netpoll_xmit(struct mitm *mitm, struct sk_buff *skb)
 {
 #ifdef CONFIG_NETPOLL
@@ -511,6 +516,10 @@ err_unslave:
 	return res;
 }
 
+/*
+ * drivers/net/bonding/bond_main.c
+ * Original function: __bond_release_one
+ */
 /* Try to release the slave device <slave> from the bond device <master>
  * It is legal to access curr_active_slave without a lock because all the function
  * is RTNL-locked. If "all" is true it means that the function is being called
