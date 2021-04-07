@@ -27,6 +27,8 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 
+#include <linux/udp.h>
+
 #define DRV_VERSION        "0.02"
 #define DRV_RELDATE        "2018-04-27"
 #define DRV_NAME           "mitm"
@@ -143,12 +145,33 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
 				icmph->type = ICMP_ECHOREPLY;
 				// Fix ICMP checksum.
 				icmph->checksum = 0;
-				icmph->checksum = ip_compute_csum(icmph, skb_tail_pointer(skb)-ip_payload);
+				icmph->checksum = ip_compute_csum(icmph, skb_tail_pointer(skb) - ip_payload);
 				// Send this packet directly back.
 				// ->data points to eth header.
-				skb_push(skb, skb->data-header);
+				skb_push(skb, skb->data - header);
 				return MITM_REPLY;
 			}
+		}
+
+		// UDP ...
+		if (iph->protocol == IPPROTO_UDP) {
+		    struct ethhdr *eth = (struct ethhdr *)header;
+		    int offset = iph->ihl << 2;
+			uint8_t *ip_payload = (skb->data + offset);
+			struct udphdr *udph = (struct udphdr *)ip_payload;
+
+			uint16_t sport = ntohs(udph->source);
+			uint16_t dport = ntohs(udph->dest);
+
+		    netdev_info(mitm->dev, "Observe UDP packets\n");
+		    netdev_info(mitm->dev, "  Source:\n");
+		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
+		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
+		    netdev_info(mitm->dev, "    Port: %hu\n", sport);
+		    netdev_info(mitm->dev, "  Dest:\n");
+		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
+		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
+		    netdev_info(mitm->dev, "    Port: %hu\n", dport);
 		}
 	}
 
@@ -662,6 +685,7 @@ static ssize_t debugfs_set_slave(struct file *file, const char __user *buff,
 	struct net_device *slave_dev;
 	char ifname[IFNAMSIZ+1];
 	ssize_t nbytes, ret = 0, nulpos;
+	struct net *mitm_ns = dev_net(mitm_dev);
 
 	if (!debugfs_dir)
 		return -EIO;
@@ -679,9 +703,11 @@ static ssize_t debugfs_set_slave(struct file *file, const char __user *buff,
 	rtnl_lock();
 
 	if (nulpos) {
-		slave_dev = __dev_get_by_name(&init_net, ifname);
+	    // find slave device under the same namespace as mitm device
+	    slave_dev = __dev_get_by_name(mitm_ns, ifname);
 
 		if (!slave_dev) {
+		    netdev_err(mitm_dev, "%s() Failed to get slave dev\n", __func__);
 			ret = -EINVAL;
 			goto unlock;
 		}
