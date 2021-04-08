@@ -1,5 +1,61 @@
 `mitm.c` is a fork from [a3f/mitm0](https://github.com/a3f/mitm0)
 
+## Testing `mitm0` w/o Docker
+
+1. Configure network namespaces
+
+    ```bash
+    sudo ip netns add netns0  # sender
+    sudo ip netns add netns1  # receiver, we can have more receivers
+    sudo ip netns add netns2  # authenticator
+    ```
+
+2. Create virtual interfaces and assign namespaces
+
+    ```bash
+    sudo ip link add veth0 type veth peer name ceth0
+    sudo ip link add veth1 type veth peer name ceth1
+    
+    sudo ip set ceth0 netns netns0
+    sudo ip set ceth1 netns netns1
+    
+    sudo ip set veth0 netns netns2
+    sudo ip set veth1 netns netns2
+    ```
+
+3. Configure the bridge
+
+    ```bash
+    # enter into netns2
+    sudo nsenter --net=/var/run/netns/netns2 bash
+    
+    # add a bridge
+    ip link add br0 type bridge
+    ip link set br0 up
+    
+    # connect virtual interfaces
+    ip link set veth0 master br0
+    ip link set veth0 master br0
+    ```
+
+4. Configure addresses for sender and receiver
+
+    ```bash
+    # enter into netns0
+    sudo nsenter --net=/var/run/netns/netns0 bash
+    
+    # set address for ceth0
+    ip link set ceth0 up
+    ip addr add 10.0.0.2 dev ceth0
+    
+    # enter into netns1
+    sudo nsenter --net=/var/run/netns/netns1 bash
+    
+    # set address for ceth1
+    ip link set ceth1 up
+    ip addr add 10.0.0.3 dev ceth1
+    ```
+
 ## `mitm0` with Docker container
 
 1. Docker has its own network namespace, which can be inspected as follow:
