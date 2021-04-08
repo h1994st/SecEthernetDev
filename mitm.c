@@ -29,6 +29,7 @@
 
 #include <linux/udp.h>
 #include <crypto/hash.h>
+#include <crypto/sha.h>
 
 #define DRV_VERSION        "0.02"
 #define DRV_RELDATE        "2018-04-27"
@@ -159,7 +160,7 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
 
 		// UDP ...
 		if (iph->protocol == IPPROTO_UDP) {
-		    u8 data[32];
+		    u8 data[SHA256_DIGEST_SIZE];
 		    int offset = iph->ihl << 2;
 			uint8_t *ip_payload = (skb->data + offset);
 			struct udphdr *udph = (struct udphdr *)ip_payload;
@@ -186,6 +187,7 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
             }
 
             // TODO: attach MAC
+            print_hex_dump_bytes("", DUMP_PREFIX_NONE, data, ARRAY_SIZE(data));
 //		    netdev_info(mitm->dev, "Observe UDP packets\n");
 //		    netdev_info(mitm->dev, "  Source:\n");
 //		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
@@ -819,7 +821,7 @@ int __init mitm_init_module(void)
 	    goto crypto_alloc_failed;
 	}
 
-	ret = crypto_shash_setkey(tfm, hmac_key, sizeof(hmac_key));
+	ret = crypto_shash_setkey(tfm, hmac_key, 32);
 	if (ret) {
 	    netdev_err(mitm_dev, "crypto_shash_setkey failed: err %d\n", ret);
         goto setkey_failed;
