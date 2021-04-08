@@ -28,6 +28,7 @@
 #include <linux/skbuff.h>
 
 #include <linux/udp.h>
+#include <crypto/hash.h>
 
 #define DRV_VERSION        "0.02"
 #define DRV_RELDATE        "2018-04-27"
@@ -67,6 +68,7 @@ enum mitm_handler_result {
  * packets in and out, so there is place for a packet
  */
 struct mitm {
+    struct crypto_shash *shash;
 	struct net_device *dev;
 	spinlock_t lock;
 
@@ -114,10 +116,12 @@ static void eth_swap_addr(struct sk_buff *skb)
 
 static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 {
-	// Example code: Intercept ping and reply directly
-
-	uint16_t protocol = ntohs(vlan_get_protocol(skb));
+    int ret;
+	struct crypto_shash *tfm;
+	struct shash_desc *desc;
+    uint16_t protocol = ntohs(vlan_get_protocol(skb));
 	uint8_t *header = skb_mac_header(skb);
+//	struct ethhdr *eth = (struct ethhdr *)header;
 
 	// If IPv4...
 	if (protocol == ETH_P_IP) {
@@ -155,7 +159,7 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
 
 		// UDP ...
 		if (iph->protocol == IPPROTO_UDP) {
-		    struct ethhdr *eth = (struct ethhdr *)header;
+		    u8 data[32];
 		    int offset = iph->ihl << 2;
 			uint8_t *ip_payload = (skb->data + offset);
 			struct udphdr *udph = (struct udphdr *)ip_payload;
@@ -163,15 +167,34 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
 			uint16_t sport = ntohs(udph->source);
 			uint16_t dport = ntohs(udph->dest);
 
-		    netdev_info(mitm->dev, "Observe UDP packets\n");
-		    netdev_info(mitm->dev, "  Source:\n");
-		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
-		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
-		    netdev_info(mitm->dev, "    Port: %hu\n", sport);
-		    netdev_info(mitm->dev, "  Dest:\n");
-		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
-		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
-		    netdev_info(mitm->dev, "    Port: %hu\n", dport);
+			/* From `hmac_sha256` at net/bluetooth/amp.c */
+			tfm = mitm->shash;
+            desc = kzalloc(sizeof(*desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
+            if (!desc) {
+                // error: no memory
+                netdev_err(mitm->dev, "cannot allocate shash_desc\n");
+                return MITM_FORWARD;
+            }
+            desc->tfm = tfm;
+
+            ret = crypto_shash_digest(desc, "123", 3, data);
+            kfree(desc);
+            if (ret < 0) {
+                // error
+                netdev_err(mitm->dev, "crypto_shash_digest failed: err %d\n", ret);
+                return MITM_FORWARD;
+            }
+
+            // TODO: attach MAC
+//		    netdev_info(mitm->dev, "Observe UDP packets\n");
+//		    netdev_info(mitm->dev, "  Source:\n");
+//		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
+//		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
+//		    netdev_info(mitm->dev, "    Port: %hu\n", sport);
+//		    netdev_info(mitm->dev, "  Dest:\n");
+//		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
+//		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
+//		    netdev_info(mitm->dev, "    Port: %hu\n", dport);
 		}
 	}
 
@@ -770,6 +793,8 @@ int __init mitm_init_module(void)
 {
 	int ret;
 	struct mitm *mitm;
+	struct crypto_shash *tfm;
+	u8 hmac_key[32] = {0};
 
 	/* Allocate the devices */
 	mitm_dev = alloc_netdev(sizeof(struct mitm), "mitm%d",
@@ -778,11 +803,26 @@ int __init mitm_init_module(void)
 		return -ENOMEM;
 
 	ret = register_netdev(mitm_dev);
-	if (ret) {
+	if (ret < 0) {
 		netdev_err(mitm_dev, "Error %i registering device \"%s\"\n",
 		       ret, mitm_dev->name);
-		unregister_netdev(mitm_dev);
-		return -ENODEV;
+        ret = -ENODEV;
+        goto register_failed;
+	}
+
+	/* Allocate the hash operation */
+	/* From `hmac_sha256` at net/bluetooth/amp.c */
+	tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
+	if (IS_ERR(tfm)) {
+	    netdev_err(mitm_dev, "crypto_alloc_shash failed: err %ld\n", PTR_ERR(tfm));
+	    ret = PTR_ERR(tfm);
+	    goto crypto_alloc_failed;
+	}
+
+	ret = crypto_shash_setkey(tfm, hmac_key, sizeof(hmac_key));
+	if (ret) {
+	    netdev_err(mitm_dev, "crypto_shash_setkey failed: err %d\n", ret);
+        goto setkey_failed;
 	}
 
 	debugfs_dir = debugfs_create_dir(mitm_dev->name, NULL);
@@ -810,15 +850,32 @@ int __init mitm_init_module(void)
 	netdev_info(mitm_dev, "Initialized module with interface %s\n", mitm_dev->name);
 
 	return 0;
+
+setkey_failed:
+    crypto_free_shash(tfm);
+
+crypto_alloc_failed:
+    unregister_netdev(mitm_dev);
+
+register_failed:
+    free_netdev(mitm_dev);
+
+    return ret;
 }
 
 void __exit mitm_exit_module(void)
 {
+    struct mitm *mitm = netdev_priv(mitm_dev);
+	crypto_free_shash(mitm->shash);
+
 	debugfs_remove_recursive(debugfs_dir);
+
 	rtnl_lock();
 	mitm_emancipate(mitm_dev, NULL);
 	rtnl_unlock();
+
 	unregister_netdev(mitm_dev);
+
 	pr_info("Exiting mitm module\n");
 }
 
