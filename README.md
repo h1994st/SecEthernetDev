@@ -16,11 +16,11 @@
     sudo ip link add veth0 type veth peer name ceth0
     sudo ip link add veth1 type veth peer name ceth1
     
-    sudo ip set ceth0 netns netns0
-    sudo ip set ceth1 netns netns1
+    sudo ip link set ceth0 netns netns0
+    sudo ip link set ceth1 netns netns1
     
-    sudo ip set veth0 netns netns2
-    sudo ip set veth1 netns netns2
+    sudo ip link set veth0 netns netns2
+    sudo ip link set veth1 netns netns2
     ```
 
 3. Configure the bridge
@@ -46,14 +46,14 @@
     
     # set address for ceth0
     ip link set ceth0 up
-    ip addr add 10.0.0.2 dev ceth0
+    ip addr add 10.0.0.2/24 dev ceth0
     
     # enter into netns1
     sudo nsenter --net=/var/run/netns/netns1 bash
     
     # set address for ceth1
     ip link set ceth1 up
-    ip addr add 10.0.0.3 dev ceth1
+    ip addr add 10.0.0.3/24 dev ceth1
     ```
 
 ## `mitm0` with Docker container
