@@ -35,7 +35,7 @@
     
     # connect virtual interfaces
     ip link set veth0 master br0
-    ip link set veth0 master br0
+    ip link set veth1 master br0
     ```
 
 4. Configure addresses for sender and receiver
