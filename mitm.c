@@ -122,7 +122,7 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
 	struct shash_desc *desc;
     uint16_t protocol = ntohs(vlan_get_protocol(skb));
 	uint8_t *header = skb_mac_header(skb);
-//	struct ethhdr *eth = (struct ethhdr *)header;
+	struct ethhdr *eth = (struct ethhdr *)header;
 
 	// If IPv4...
 	if (protocol == ETH_P_IP) {
@@ -168,9 +168,20 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
 			uint16_t sport = ntohs(udph->source);
 			uint16_t dport = ntohs(udph->dest);
 
+		    netdev_info(mitm->dev, "Observe UDP packets\n");
+		    netdev_info(mitm->dev, "  Source:\n");
+		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
+		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
+		    netdev_info(mitm->dev, "    Port: %hu\n", sport);
+		    netdev_info(mitm->dev, "  Dest:\n");
+		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
+		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
+		    netdev_info(mitm->dev, "    Port: %hu\n", dport);
+
 			/* From `hmac_sha256` at net/bluetooth/amp.c */
+			netdev_info(mitm->dev, "allocate memory\n");
 			tfm = mitm->shash;
-            desc = kzalloc(sizeof(*desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
+            desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
             if (!desc) {
                 // error: no memory
                 netdev_err(mitm->dev, "cannot allocate shash_desc\n");
@@ -178,6 +189,7 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
             }
             desc->tfm = tfm;
 
+            netdev_info(mitm->dev, "compute hash\n");
             ret = crypto_shash_digest(desc, "123", 3, data);
             kfree(desc);
             if (ret < 0) {
@@ -187,16 +199,8 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
             }
 
             // TODO: attach MAC
+            netdev_info(mitm->dev, "dump hash data");
             print_hex_dump_bytes("", DUMP_PREFIX_NONE, data, ARRAY_SIZE(data));
-//		    netdev_info(mitm->dev, "Observe UDP packets\n");
-//		    netdev_info(mitm->dev, "  Source:\n");
-//		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
-//		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
-//		    netdev_info(mitm->dev, "    Port: %hu\n", sport);
-//		    netdev_info(mitm->dev, "  Dest:\n");
-//		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
-//		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
-//		    netdev_info(mitm->dev, "    Port: %hu\n", dport);
 		}
 	}
 
@@ -842,6 +846,7 @@ int __init mitm_init_module(void)
 	}
 
 	mitm = netdev_priv(mitm_dev);
+	mitm->shash = tfm;
 	mitm->handle_ingress = mitm->handle_egress = forward;
 
 	if (intercept_ping) {

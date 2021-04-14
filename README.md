@@ -1,5 +1,11 @@
 `mitm.c` is a fork from [a3f/mitm0](https://github.com/a3f/mitm0)
 
+## QEMU dev encironment
+
+```bash
+mount -t debugfs none /sys/kernel/debug
+```
+
 ## Testing `mitm0` w/o Docker
 
 1. Configure network namespaces
