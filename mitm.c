@@ -117,9 +117,6 @@ static void eth_swap_addr(struct sk_buff *skb)
 
 static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 {
-    int ret;
-	struct crypto_shash *tfm;
-	struct shash_desc *desc;
     uint16_t protocol = ntohs(vlan_get_protocol(skb));
 	uint8_t *header = skb_mac_header(skb);
 	struct ethhdr *eth = (struct ethhdr *)header;
@@ -158,9 +155,8 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
 			}
 		}
 
-		// UDP ...
+				// UDP ...
 		if (iph->protocol == IPPROTO_UDP) {
-		    u8 data[SHA256_DIGEST_SIZE];
 		    int offset = iph->ihl << 2;
 			uint8_t *ip_payload = (skb->data + offset);
 			struct udphdr *udph = (struct udphdr *)ip_payload;
@@ -168,7 +164,7 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
 			uint16_t sport = ntohs(udph->source);
 			uint16_t dport = ntohs(udph->dest);
 
-		    netdev_info(mitm->dev, "Observe UDP packets\n");
+		    netdev_info(mitm->dev, "Observe incoming UDP packets\n");
 		    netdev_info(mitm->dev, "  Source:\n");
 		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
 		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
@@ -177,6 +173,55 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
 		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
 		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
 		    netdev_info(mitm->dev, "    Port: %hu\n", dport);
+
+		    netdev_info(
+		            mitm->dev,
+		            "skb len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
+		            skb->len, skb->data_len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
+		}
+	}
+
+	// TODO: Tweak packets here.
+	return MITM_FORWARD;
+}
+
+static enum mitm_handler_result mitm_from_master(struct mitm *mitm, struct sk_buff *skb)
+{
+	int ret;
+	struct crypto_shash *tfm;
+	struct shash_desc *desc;
+    uint16_t protocol = ntohs(vlan_get_protocol(skb));
+	uint8_t *header = skb_mac_header(skb);
+	struct ethhdr *eth = (struct ethhdr *)header;
+
+	// If IPv4...
+	if (protocol == ETH_P_IP) {
+		// Find IP header.
+		struct iphdr *iph = ip_hdr(skb);
+
+		// UDP ...
+		if (iph->protocol == IPPROTO_UDP) {
+		    u8 data[SHA256_DIGEST_SIZE];
+			struct udphdr *udph = udp_hdr(skb);
+
+			uint16_t sport = ntohs(udph->source);
+			uint16_t dport = ntohs(udph->dest);
+
+		    netdev_info(mitm->dev, "Observe outgoing UDP packets\n");
+		    netdev_info(mitm->dev, "  Source:\n");
+		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
+		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
+		    netdev_info(mitm->dev, "    Port: %hu\n", sport);
+		    netdev_info(mitm->dev, "  Dest:\n");
+		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
+		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
+		    netdev_info(mitm->dev, "    Port: %hu\n", dport);
+
+		    netdev_info(
+		            mitm->dev,
+		            "skb len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
+		            skb->len, skb->data_len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
+
 
 			/* From `hmac_sha256` at net/bluetooth/amp.c */
 			netdev_info(mitm->dev, "allocate memory\n");
@@ -190,7 +235,7 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
             desc->tfm = tfm;
 
             netdev_info(mitm->dev, "compute hash\n");
-            ret = crypto_shash_digest(desc, "123", 3, data);
+            ret = crypto_shash_digest(desc, skb_mac_header(skb), skb->tail - skb_headroom(skb), data);
             kfree(desc);
             if (ret < 0) {
                 // error
@@ -198,19 +243,22 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
                 return MITM_FORWARD;
             }
 
-            // TODO: attach MAC
-            netdev_info(mitm->dev, "dump hash data");
-            print_hex_dump_bytes("", DUMP_PREFIX_NONE, data, ARRAY_SIZE(data));
+            netdev_info(mitm->dev, "dump hash data\n");
+            print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1, data, ARRAY_SIZE(data), true);
+
+            // attach MAC to the end of the buffer
+            skb_put_data(skb, data, ARRAY_SIZE(data));
+
+            netdev_info(
+                    mitm->dev,
+                    "dump input data (i.e., the whole packet), %u bytes (%u)\n",
+                    skb->tail - skb->mac_header, skb->tail - skb_headroom(skb));
+            print_hex_dump(
+                    KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
+                    skb_mac_header(skb), skb->tail - skb->mac_header, true);
 		}
 	}
 
-	// TODO: Tweak packets here.
-	return MITM_FORWARD;
-}
-
-static enum mitm_handler_result mitm_from_master(struct mitm *mitm, struct sk_buff *skb)
-{
-	// TODO: Tweak packets here.
 	return MITM_FORWARD;
 }
 
