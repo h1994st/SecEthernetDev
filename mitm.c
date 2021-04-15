@@ -133,7 +133,7 @@ static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buf
 	if (protocol == ETH_P_IP) {
 		// Find IP header.
 		struct iphdr *iph = ip_hdr(skb);
-#if (MITM_ROLE == 1) /* receiver */
+#if (MITM_ROLE == 1 || MITM_ROLE == 2) /* receiver or authenticator */
 		struct ethhdr *eth = (struct ethhdr *)header;
 //		is_broadcast_ether_addr(eth->h_dest);
 		// UDP ...
@@ -625,6 +625,12 @@ static int mitm_enslave(struct net_device *mitm_dev, struct net_device *slave_de
 		goto err_unregister;
 	}
 
+#if (MITM_ROLE == 2) /* authenticator */
+	res = dev_set_promiscuity(slave_dev, 1);
+	if (res)
+	    goto err_upper_unlink;
+#endif
+
     /* set promiscuity level to new slave */
     if (mitm_dev->flags & IFF_PROMISC) {
         res = dev_set_promiscuity(slave_dev, 1);
@@ -727,6 +733,10 @@ static int mitm_emancipate(struct net_device *mitm_dev, struct net_device *slave
 	eth_hw_addr_random(mitm_dev);
 	call_netdevice_notifiers(NETDEV_CHANGEADDR, mitm->dev);
 	call_netdevice_notifiers(NETDEV_RELEASE, mitm->dev);
+
+#if (MITM_ROLE == 2) /* authenticator */
+	dev_set_promiscuity(slave_dev, -1);
+#endif
 
 	if (old_flags & IFF_PROMISC)
 		dev_set_promiscuity(slave_dev, -1);
