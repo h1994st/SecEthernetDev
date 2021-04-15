@@ -1,5 +1,23 @@
-obj-m := mitm.o
-MY_CFLAGS += -g -DDEBUG
+ifndef MITM_ROLE
+    override MITM_ROLE = 1
+endif
+
+ifeq ($(MITM_ROLE),0)
+    obj-m := mitm_snd.o
+    mitm_snd-objs := mitm.o
+endif
+
+ifeq ($(MITM_ROLE),1)
+    obj-m := mitm_recv.o
+    mitm_recv-objs := mitm.o
+endif
+
+ifeq ($(MITM_ROLE),2)
+    obj-m := mitm_auth.o
+    mitm_auth-objs := mitm.o
+endif
+
+MY_CFLAGS += -g -DDEBUG -DMITM_ROLE=${MITM_ROLE}
 ccflags-y += ${MY_CFLAGS}
 CC += ${MY_CFLAGS}
 
