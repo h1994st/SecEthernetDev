@@ -1,0 +1,10 @@
+//
+// Created by h1994st on 4/15/21.
+//
+
+#ifndef SECETHERNETDEV_AUTHENTICATOR_H
+#define SECETHERNETDEV_AUTHENTICATOR_H
+
+#include "role.h"
+
+#endif //SECETHERNETDEV_AUTHENTICATOR_H

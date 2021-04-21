@@ -27,9 +27,8 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 
-#include <linux/udp.h>
-#include <crypto/hash.h>
-#include <crypto/sha.h>
+#include "mitm.h"
+#include "role.h"
 
 #define DRV_VERSION        "0.01"
 #define DRV_RELDATE        "2020-04-14"
@@ -57,268 +56,6 @@ module_param(use_netpoll, bool, 0000);
 static bool intercept_ping = true;
 MODULE_PARM_DESC(intercept_ping, "Enable ICMP echo (ping) interception example code? 0 = no, 1 = yes (default)");
 module_param(intercept_ping, bool, 0000);
-
-/*
- * enum mitm_handler_result - Possible return values for handlers.
- * @MITM_CONSUMED: skb was consumed by handler, do not process it further.
- * @MITM_FORWARD:  forward to paired device.
- * @MITM_REPLY:    reply through same device (only slave supported)
- * @MITM_DROP:     Drop the packet
- */
-enum mitm_handler_result {
-	MITM_CONSUMED,
-	MITM_FORWARD,
-	MITM_REPLY,
-	MITM_DROP
-};
-
-/*
- * This structure is private to each device. It is used to pass
- * packets in and out, so there is place for a packet
- */
-struct mitm {
-    struct crypto_shash *shash;
-	struct net_device *dev;
-	spinlock_t lock;
-
-	enum mitm_handler_result (*handle_ingress)(struct mitm *mitm, struct sk_buff *skb);
-	enum mitm_handler_result (*handle_egress)(struct mitm *mitm, struct sk_buff *skb);
-
-#ifdef CONFIG_NETPOLL
-	struct netpoll np;
-#endif
-	netdev_tx_t (*xmit)(struct mitm *mitm, struct sk_buff *);
-
-	struct slave {
-		struct net_device *dev;
-	} slave;
-};
-
-#define mitm_slave_list(mitm) (&(mitm)->dev->adj_list.lower)
-#define mitm_has_slave(mitm) (!list_empty(mitm_slave_list(mitm)))
-static inline struct slave *mitm_slave(struct mitm *mitm)
-{
-	if (!mitm_has_slave(mitm))
-		return NULL;
-	return netdev_adjacent_get_private(mitm_slave_list(mitm)->next);
-}
-#define mitm_of(slaveptr) container_of((slaveptr), struct mitm, slave)
-
-/*------------------------------- Example Code ------------------------------*/
-
-// Headers required by user code.
-#include <linux/ip.h>
-#include <linux/icmp.h>
-#include <linux/if_ether.h>
-#include <linux/if_vlan.h>
-#include <crypto/algapi.h>
-
-// Swap src/dest ethernet addresses
-static void eth_swap_addr(struct sk_buff *skb)
-{
-	struct ethhdr *eth = (struct ethhdr *)skb_mac_header(skb);
-	unsigned char tmp[ETH_ALEN];
-
-	memcpy(tmp, eth->h_dest, ETH_ALEN);
-	memcpy(eth->h_dest, eth->h_source, ETH_ALEN);
-	memcpy(eth->h_source, tmp, ETH_ALEN);
-}
-
-static enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
-{
-    uint16_t protocol = ntohs(vlan_get_protocol(skb));
-	uint8_t *header = skb_mac_header(skb);
-
-	// If IPv4...
-	if (protocol == ETH_P_IP) {
-		// Find IP header.
-		struct iphdr *iph = ip_hdr(skb);
-#if (MITM_ROLE == 1 || MITM_ROLE == 2) /* receiver or authenticator */
-		struct ethhdr *eth = (struct ethhdr *)header;
-//		is_broadcast_ether_addr(eth->h_dest);
-		// UDP ...
-		if (iph->protocol == IPPROTO_UDP) {
-            int ret;
-            struct crypto_shash *tfm;
-            struct shash_desc *desc;
-		    u8 data[SHA256_DIGEST_SIZE];
-			struct udphdr *udph = udp_hdr(skb);
-			uint8_t *udp_payload_end = (uint8_t *)udph + ntohs(udph->len);
-			unsigned int tail_data_len = skb_tail_pointer(skb) - udp_payload_end;
-
-			uint16_t sport = ntohs(udph->source);
-			uint16_t dport = ntohs(udph->dest);
-
-		    netdev_info(mitm->dev, "Observe incoming broadcast UDP packets\n");
-		    netdev_info(mitm->dev, "  Source:\n");
-		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
-		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
-		    netdev_info(mitm->dev, "    Port: %hu\n", sport);
-		    netdev_info(mitm->dev, "  Dest:\n");
-		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
-		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
-		    netdev_info(mitm->dev, "    Port: %hu\n", dport);
-
-		    netdev_info(
-		            mitm->dev,
-		            "skb len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
-		            skb->len, skb->data_len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
-
-            netdev_info(
-                    mitm->dev,
-                    "dump input data (i.e., the whole packet), %u bytes\n",
-                    skb->tail - skb->mac_header);
-            print_hex_dump(
-                    KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
-                    skb_mac_header(skb), skb->tail - skb->mac_header, true);
-
-            netdev_info(mitm->dev, "tail pointer=%px\n", skb_tail_pointer(skb));
-            netdev_info(mitm->dev, "udp payload end=%px, udp len=%hu\n", udp_payload_end, ntohs(udph->len));
-            netdev_info(mitm->dev, "tail data len=%u\n", tail_data_len);
-            if (tail_data_len != ARRAY_SIZE(data)) {
-                // no additional data
-                netdev_info(mitm->dev, "normal packet, no appended data\n");
-                return MITM_FORWARD;
-            }
-
-			/* From `hmac_sha256` at net/bluetooth/amp.c */
-			tfm = mitm->shash;
-            desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
-            if (!desc) {
-                // error: no memory
-                netdev_err(mitm->dev, "cannot allocate shash_desc\n");
-                return MITM_FORWARD;
-            }
-            desc->tfm = tfm;
-
-            skb->tail -= ARRAY_SIZE(data);
-            skb->len -= ARRAY_SIZE(data);
-            ret = crypto_shash_digest(desc, skb_mac_header(skb), skb->tail - skb->mac_header, data);
-            kfree(desc);
-            if (ret < 0) {
-                // error
-                netdev_err(mitm->dev, "crypto_shash_digest failed: err %d\n", ret);
-                return MITM_FORWARD;
-            }
-
-            ret = crypto_memneq(data, skb_tail_pointer(skb), ARRAY_SIZE(data));
-            if (ret) {
-                // non-equal
-                netdev_alert(mitm->dev, "wrong MAC, drop the packet\n");
-                return MITM_DROP;
-            }
-            netdev_info(mitm->dev, "correct MAC\n");
-
-            return MITM_FORWARD;
-		}
-#endif
-
-		// ICMP...
-		if (iph->protocol == IPPROTO_ICMP) {
-			int offset = iph->ihl << 2;
-			uint8_t *ip_payload = (skb->data + offset);
-			struct icmphdr *icmph = (struct icmphdr *)ip_payload;
-			// If ping request...
-			if (icmph->type == ICMP_ECHO) {
-			    __be32 tmp;
-                netdev_info(mitm->dev, "Intercept PING request\n");
-				// Swap ETH addresses.
-				eth_swap_addr(skb);
-				// Swap IP addresses.
-				tmp = iph->daddr;
-				iph->daddr = iph->saddr;
-				iph->saddr = tmp;
-				// Fix IP checksum.
-				iph->check = 0;
-				iph->check = ip_fast_csum(iph, iph->ihl);
-				// Change ping request into a reply.
-				icmph->type = ICMP_ECHOREPLY;
-				// Fix ICMP checksum.
-				icmph->checksum = 0;
-				icmph->checksum = ip_compute_csum(icmph, skb_tail_pointer(skb) - ip_payload);
-				// Send this packet directly back.
-				// ->data points to eth header.
-				skb_push(skb, skb->data - header);
-				return MITM_REPLY;
-			}
-		}
-	}
-
-	return MITM_FORWARD;
-}
-
-static enum mitm_handler_result mitm_from_master(struct mitm *mitm, struct sk_buff *skb)
-{
-#if (MITM_ROLE == 0) /* sender */
-    uint16_t protocol = ntohs(vlan_get_protocol(skb));
-	uint8_t *header = skb_mac_header(skb);
-	struct ethhdr *eth = (struct ethhdr *)header;
-
-	// If IPv4...
-	if (protocol == ETH_P_IP) {
-		// Find IP header.
-		struct iphdr *iph = ip_hdr(skb);
-
-		// UDP ...
-		if (iph->protocol == IPPROTO_UDP) {
-            int ret;
-            struct crypto_shash *tfm;
-            struct shash_desc *desc;
-		    u8 data[SHA256_DIGEST_SIZE];
-			struct udphdr *udph = udp_hdr(skb);
-
-			uint16_t sport = ntohs(udph->source);
-			uint16_t dport = ntohs(udph->dest);
-
-		    netdev_info(mitm->dev, "Observe outgoing broadcast UDP packets\n");
-		    netdev_info(mitm->dev, "  Source:\n");
-		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
-		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
-		    netdev_info(mitm->dev, "    Port: %hu\n", sport);
-		    netdev_info(mitm->dev, "  Dest:\n");
-		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
-		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
-		    netdev_info(mitm->dev, "    Port: %hu\n", dport);
-
-		    netdev_info(
-		            mitm->dev,
-		            "skb len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
-		            skb->len, skb->data_len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
-
-			/* From `hmac_sha256` at net/bluetooth/amp.c */
-			tfm = mitm->shash;
-            desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
-            if (!desc) {
-                // error: no memory
-                netdev_err(mitm->dev, "cannot allocate shash_desc\n");
-                return MITM_FORWARD;
-            }
-            desc->tfm = tfm;
-
-            ret = crypto_shash_digest(desc, skb_mac_header(skb), skb->tail - skb_headroom(skb), data);
-            kfree(desc);
-            if (ret < 0) {
-                // error
-                netdev_err(mitm->dev, "crypto_shash_digest failed: err %d\n", ret);
-                return MITM_FORWARD;
-            }
-
-            // attach MAC to the end of the buffer
-            skb_put_data(skb, data, ARRAY_SIZE(data));
-
-            netdev_info(
-                    mitm->dev,
-                    "dump input data (i.e., the whole packet), %u bytes\n",
-                    skb->tail - skb->mac_header);
-            print_hex_dump(
-                    KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
-                    skb_mac_header(skb), skb->tail - skb->mac_header, true);
-		}
-	}
-#endif
-
-	return MITM_FORWARD;
-}
 
 /*----------------------------------- Rx ------------------------------------*/
 /*
@@ -555,6 +292,15 @@ static int mitm_enslave(struct net_device *mitm_dev, struct net_device *slave_de
 {
 	struct mitm *mitm = netdev_priv(mitm_dev);
 	int res = 0;
+
+#if (MITM_ROLE == 2)
+	/* We only accept bridge device for the authenticator */
+	if (!netif_is_bridge_master(slave_dev)) {
+	    netdev_err(mitm_dev, "mitm authenticator can only enslave a bridge device\n");
+	    return -EPERM;
+	}
+	netdev_info(mitm_dev, "Enslaving a bridge master device\n");
+#endif
 
 	/* We only mitm one device */
 	if (mitm_has_slave(mitm)) {
