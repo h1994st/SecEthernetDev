@@ -27,14 +27,19 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     struct crypto_shash *tfm;
     struct shash_desc *desc;
     struct proofhdr *proof;
+    bool enable_irq;
+    struct slave *slave = mitm_slave(mitm);
+    struct net_device *slave_dev = slave->dev;
 
-    // create a buffer
+    // clone a buffer
+    netdev_info(mitm->dev, "clone the sk_buff\n");
     skb = skb_clone(skbn, GFP_ATOMIC);
     if (!skb)
         return -ENOMEM;
     proof = proof_hdr(skb);
 
-    ret = dev_hard_header(skb, to, ETH_P_MITM_AUTH, NULL, NULL, skb->len);
+    netdev_info(mitm->dev, "setup the hardware header\n");
+    ret = dev_hard_header(skb, to, ETH_P_MITM_AUTH, to->dev_addr, slave_dev->dev_addr, skb->len);
     if (ret < 0)
         goto failed;
 
@@ -49,6 +54,7 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     desc->tfm = tfm;
 
     // calculate new hmac
+    netdev_info(mitm->dev, "calculate hmac for the proof packet\n");
     ret = crypto_shash_digest(desc, data, len, proof->proof_hmac);
     kfree(desc);
     if (ret < 0) {
@@ -57,11 +63,19 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
         goto failed;
     }
 
-    // send packet out
-    skb_push(skb, ETH_HLEN);
+    // adjust the data pointer
+//    netdev_info(mitm->dev, "adjust the data pointer before transmission\n");
+//    skb_push(skb, ETH_HLEN);
 
+    // send packet out
     netdev_info(mitm->dev, "send the proof packet to (%p)\n", to);
-    dev_queue_xmit(skb);
+	enable_irq = irqs_disabled();
+
+	if (enable_irq)
+		local_irq_enable();
+	dev_queue_xmit(skb);
+	if (enable_irq)
+		local_irq_disable();
 
     return 0;
 
@@ -172,13 +186,18 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 			// TODO: calculate the hash, fill it into `data`
 
 			// create `skbn` as a template
-			hlen = src_dev->needed_headroom;
+			hlen = LL_RESERVED_SPACE(src_dev);
 			tlen = src_dev->needed_tailroom;
 			skbn = alloc_skb(plen + hlen + tlen, GFP_ATOMIC);
             if (!skbn) {
                 netdev_err(mitm->dev, "cannot allocate sk_buff for proof packets\n");
                 return MITM_FORWARD;
             }
+            netdev_info(mitm->dev, "hlen=%d tlen=%d plen=%d\n", hlen, tlen, plen);
+            netdev_info(
+		            mitm->dev,
+		            "skbn len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
+		            skbn->len, skbn->data_len, skb_headroom(skbn), skbn->head, skbn->data, skbn->tail, skbn->end);
 
 			skb_reserve(skbn, hlen);
             skb_reset_network_header(skbn); // now points to the proof header
