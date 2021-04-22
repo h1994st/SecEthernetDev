@@ -64,3 +64,8 @@ enum mitm_handler_result on_ping(struct mitm *mitm, struct sk_buff *skb)
 
 	return MITM_FORWARD;
 }
+
+enum mitm_handler_result forward(struct mitm *mitm __maybe_unused, struct sk_buff *skb __maybe_unused)
+{
+	return MITM_FORWARD;
+}

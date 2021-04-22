@@ -10,6 +10,8 @@
 enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb);
 enum mitm_handler_result mitm_from_master(struct mitm *mitm, struct sk_buff *skb);
 
+enum mitm_handler_result forward(struct mitm *mitm __maybe_unused, struct sk_buff *skb __maybe_unused);
+
 enum mitm_handler_result on_ping(struct mitm *mitm, struct sk_buff *skb);
 
 #endif //SECETHERNETDEV_ROLE_H

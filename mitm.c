@@ -96,10 +96,6 @@ static rx_handler_result_t mitm_handle_frame(struct sk_buff **pskb)
 
 static int __packet_direct_xmit(struct sk_buff *skb);
 
-enum mitm_handler_result forward(struct mitm *mitm __maybe_unused, struct sk_buff *skb __maybe_unused)
-{
-	return MITM_FORWARD;
-}
 static netdev_tx_t mitm_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mitm *mitm = netdev_priv(dev);
@@ -709,12 +705,9 @@ int __init mitm_init_module(void)
 
 	mitm = netdev_priv(mitm_dev);
 	mitm->shash = tfm;
-	mitm->handle_ingress = mitm->handle_egress = forward;
 
-	if (intercept_ping) {
-		mitm->handle_ingress = mitm_from_slave;
-		mitm->handle_egress  = mitm_from_master;
-	}
+	mitm->handle_ingress = mitm_from_slave;
+    mitm->handle_egress  = mitm_from_master;
 
 	netdev_info(mitm_dev, "Initialized module with interface %s\n", mitm_dev->name);
 
