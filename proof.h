@@ -9,6 +9,9 @@
 #include <linux/if_ether.h>
 #include <crypto/sha.h>
 
+// The high byte must be greater than 0x06 (see `eth_proto_is_802_3()`
+// in `linux/etherdevice.h`). Otherwise, the proof packets will be treated
+// as `ETH_P_802_2` (see `eth_type_trans()` in `net/ethernet/eth.c`).
 #define ETH_P_MITM_AUTH 0x080A
 //#define ETH_P_MITM_AUTH ETH_P_802_3
 
