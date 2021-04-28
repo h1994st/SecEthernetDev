@@ -26,10 +26,10 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     struct sk_buff *skb;
     struct crypto_shash *tfm;
     struct shash_desc *desc;
+    struct ethhdr *eth;
     struct proofhdr *proof;
-    bool enable_irq;
-    struct slave *slave = mitm_slave(mitm);
-    struct net_device *slave_dev = slave->dev;
+//    struct slave *slave = mitm_slave(mitm);
+//    struct net_device *slave_dev = slave->dev;
 
     // clone a buffer
     netdev_info(mitm->dev, "clone the sk_buff\n");
@@ -37,11 +37,15 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     if (!skb)
         return -ENOMEM;
     proof = proof_hdr(skb);
+    skb->dev = to;
+    skb->pkt_type = PACKET_OUTGOING;
 
     netdev_info(mitm->dev, "setup the hardware header\n");
-    ret = dev_hard_header(skb, to, ETH_P_MITM_AUTH, to->dev_addr, slave_dev->dev_addr, skb->len);
-    if (ret < 0)
-        goto failed;
+    eth = skb_push(skb, ETH_HLEN);
+    skb_reset_mac_header(skb);
+    eth->h_proto = htons(sizeof(struct proofhdr));
+    eth_broadcast_addr(eth->h_dest); // broadcast destination
+    eth_random_addr(eth->h_source); // random source address
 
     tfm = mitm->shash;
     desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
@@ -63,19 +67,22 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
         goto failed;
     }
 
-    // adjust the data pointer
-//    netdev_info(mitm->dev, "adjust the data pointer before transmission\n");
-//    skb_push(skb, ETH_HLEN);
+    netdev_info(
+            mitm->dev,
+            "skb len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
+            skb->len, skb->data_len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
+    netdev_info(
+            mitm->dev,
+            "dump output data, %u bytes\n",
+            skb->tail - skb->mac_header);
+    print_hex_dump(
+            KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
+            skb_mac_header(skb), skb->tail - skb->mac_header, true);
 
     // send packet out
     netdev_info(mitm->dev, "send the proof packet to (%p)\n", to);
-	enable_irq = irqs_disabled();
-
-	if (enable_irq)
-		local_irq_enable();
-	dev_queue_xmit(skb);
-	if (enable_irq)
-		local_irq_disable();
+	ret = dev_queue_xmit(skb);
+	netdev_info(mitm->dev, "dev_queue_xmit() returns %d\n", ret);
 
     return 0;
 
@@ -193,11 +200,6 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
                 netdev_err(mitm->dev, "cannot allocate sk_buff for proof packets\n");
                 return MITM_FORWARD;
             }
-            netdev_info(mitm->dev, "hlen=%d tlen=%d plen=%d\n", hlen, tlen, plen);
-            netdev_info(
-		            mitm->dev,
-		            "skbn len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
-		            skbn->len, skbn->data_len, skb_headroom(skbn), skbn->head, skbn->data, skbn->tail, skbn->end);
 
 			skb_reserve(skbn, hlen);
             skb_reset_network_header(skbn); // now points to the proof header
@@ -213,7 +215,6 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
                     continue;
 
                 netdev_info(mitm->dev, "other br_port_dev=%p\n", br_port_dev);
-                skbn->dev = br_port_dev; // assign to the destination device
 
                 // `skbn` will be cloned in the function
                 ret = mitm_deliver_proof(mitm, br_port_dev, skbn,
