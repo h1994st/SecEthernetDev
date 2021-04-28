@@ -9,8 +9,8 @@
 #include <linux/if_ether.h>
 #include <crypto/sha.h>
 
-//#define ETH_P_MITM_AUTH 0x000A
-#define ETH_P_MITM_AUTH ETH_P_802_3
+#define ETH_P_MITM_AUTH 0x080A
+//#define ETH_P_MITM_AUTH ETH_P_802_3
 
 struct proofhdr {
     unsigned char pkt_hash[SHA256_DIGEST_SIZE];

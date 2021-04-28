@@ -28,8 +28,8 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     struct shash_desc *desc;
     struct ethhdr *eth;
     struct proofhdr *proof;
-//    struct slave *slave = mitm_slave(mitm);
-//    struct net_device *slave_dev = slave->dev;
+    struct slave *slave = mitm_slave(mitm);
+    struct net_device *slave_dev = slave->dev;
 
     // clone a buffer
     netdev_info(mitm->dev, "clone the sk_buff\n");
@@ -41,11 +41,17 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     skb->pkt_type = PACKET_OUTGOING;
 
     netdev_info(mitm->dev, "setup the hardware header\n");
-    eth = skb_push(skb, ETH_HLEN);
+//    eth = skb_push(skb, ETH_HLEN);
+//    eth->h_proto = htons(ETH_P_MITM_AUTH);
+//    eth_broadcast_addr(eth->h_dest); // broadcast destination
+//    eth_random_addr(eth->h_source); // random source address
+    ret = dev_hard_header(skb, slave_dev, ETH_P_MITM_AUTH, slave_dev->broadcast, NULL, skb->len);
+    if (ret < 0) {
+        netdev_err(mitm->dev, "dev_hard_header failed: err %d\n", ret);
+        goto failed;
+    }
+    // !!!: this is important, because we will use `skb->mac_header` later
     skb_reset_mac_header(skb);
-    eth->h_proto = htons(sizeof(struct proofhdr));
-    eth_broadcast_addr(eth->h_dest); // broadcast destination
-    eth_random_addr(eth->h_source); // random source address
 
     tfm = mitm->shash;
     desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
