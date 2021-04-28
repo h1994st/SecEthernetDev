@@ -17,6 +17,8 @@
 #error "Wrong MITM_ROLE! Should be 0"
 #endif
 
+u8 hmac_key[SHA256_DIGEST_SIZE] = { 0x00 };
+
 enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 {
 	return forward(mitm, skb);

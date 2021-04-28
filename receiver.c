@@ -18,6 +18,8 @@
 #error "Wrong MITM_ROLE! Should be 1"
 #endif
 
+u8 hmac_key[SHA256_DIGEST_SIZE] = { 0x01 };
+
 enum mitm_handler_result handle_proof_packets(struct mitm *mitm, struct sk_buff *skb)
 {
     struct proofhdr *proof = proof_hdr(skb);

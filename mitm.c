@@ -657,8 +657,13 @@ int __init mitm_init_module(void)
 {
 	int ret;
 	struct mitm *mitm;
-	struct crypto_shash *tfm;
-	u8 hmac_key[32] = {0};
+	struct crypto_shash *hmac_tfm;
+#if MITM_ROLE == 2
+    struct crypto_shash *proof_tfm;
+#endif
+#if MITM_ROLE == 1 || MITM_ROLE == 2
+    struct crypto_shash *hash_tfm;
+#endif
 
 	/* Allocate the devices */
 	mitm_dev = alloc_netdev(sizeof(struct mitm), DRV_NAME,
@@ -674,20 +679,44 @@ int __init mitm_init_module(void)
         goto register_failed;
 	}
 
-	/* Allocate the hash operation */
+	/* Allocate the hash operations */
 	/* From `hmac_sha256` at net/bluetooth/amp.c */
-	tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
-	if (IS_ERR(tfm)) {
-	    netdev_err(mitm_dev, "crypto_alloc_shash failed: err %ld\n", PTR_ERR(tfm));
-	    ret = PTR_ERR(tfm);
-	    goto crypto_alloc_failed;
+	hmac_tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
+	if (IS_ERR(hmac_tfm)) {
+	    netdev_err(mitm_dev, "crypto_alloc_shash failed: err %ld\n", PTR_ERR(hmac_tfm));
+	    ret = PTR_ERR(hmac_tfm);
+	    goto hmac_crypto_alloc_failed;
 	}
 
-	ret = crypto_shash_setkey(tfm, hmac_key, 32);
+	ret = crypto_shash_setkey(hmac_tfm, hmac_key, ARRAY_SIZE(hmac_key));
 	if (ret) {
 	    netdev_err(mitm_dev, "crypto_shash_setkey failed: err %d\n", ret);
-        goto setkey_failed;
+        goto hmac_setkey_failed;
 	}
+
+#if MITM_ROLE == 2
+	proof_tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
+	if (IS_ERR(proof_tfm)) {
+	    netdev_err(mitm_dev, "crypto_alloc_shash failed: err %ld\n", PTR_ERR(proof_tfm));
+	    ret = PTR_ERR(proof_tfm);
+	    goto proof_crypto_alloc_failed;
+	}
+
+	ret = crypto_shash_setkey(proof_tfm, proof_key, ARRAY_SIZE(proof_key));
+	if (ret) {
+	    netdev_err(mitm_dev, "crypto_shash_setkey failed: err %d\n", ret);
+        goto proof_setkey_failed;
+	}
+#endif
+
+#if MITM_ROLE == 1 || MITM_ROLE == 2
+	hash_tfm = crypto_alloc_shash("sha256", 0, 0);
+	if (IS_ERR(hash_tfm)) {
+	    netdev_err(mitm_dev, "crypto_alloc_shash failed: err %ld\n", PTR_ERR(hash_tfm));
+	    ret = PTR_ERR(hash_tfm);
+	    goto hash_crypto_alloc_failed;
+	}
+#endif
 
 	debugfs_dir = debugfs_create_dir(mitm_dev->name, NULL);
 	if (IS_ERR_OR_NULL(debugfs_dir)) {
@@ -704,7 +733,10 @@ int __init mitm_init_module(void)
 	}
 
 	mitm = netdev_priv(mitm_dev);
-	mitm->shash = tfm;
+	mitm->hmac_shash = hmac_tfm;
+#if MITM_ROLE == 1 || MITM_ROLE == 2
+    mitm->hash_shash = hash_tfm;
+#endif
 
 	mitm->handle_ingress = mitm_from_slave;
     mitm->handle_egress  = mitm_from_master;
@@ -713,10 +745,17 @@ int __init mitm_init_module(void)
 
 	return 0;
 
-setkey_failed:
-    crypto_free_shash(tfm);
+hash_crypto_alloc_failed:
 
-crypto_alloc_failed:
+proof_setkey_failed:
+    crypto_free_shash(proof_tfm);
+
+proof_crypto_alloc_failed:
+
+hmac_setkey_failed:
+    crypto_free_shash(hmac_tfm);
+
+hmac_crypto_alloc_failed:
     unregister_netdev(mitm_dev);
 
 register_failed:
@@ -728,7 +767,10 @@ register_failed:
 void __exit mitm_exit_module(void)
 {
     struct mitm *mitm = netdev_priv(mitm_dev);
-	crypto_free_shash(mitm->shash);
+	crypto_free_shash(mitm->hmac_shash);
+#if MITM_ROLE == 1 || MITM_ROLE == 2
+	crypto_free_shash(mitm->hash_shash);
+#endif
 
 	debugfs_remove_recursive(debugfs_dir);
 

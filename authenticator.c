@@ -18,6 +18,9 @@
 #error "Wrong MITM_ROLE! Should be 2"
 #endif
 
+u8 hmac_key[SHA256_DIGEST_SIZE] = { 0x00 };
+u8 proof_key[SHA256_DIGEST_SIZE] = {0x01 };
+
 /* Taken out of net/bridge/br_forward.c */
 static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct sk_buff *skbn,
                               const u8 *data, unsigned int len)
@@ -26,7 +29,7 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     struct sk_buff *skb;
     struct crypto_shash *tfm;
     struct shash_desc *desc;
-    struct ethhdr *eth;
+//    struct ethhdr *eth;
     struct proofhdr *proof;
     struct slave *slave = mitm_slave(mitm);
     struct net_device *slave_dev = slave->dev;
@@ -53,7 +56,7 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     // !!!: this is important, because we will use `skb->mac_header` later
     skb_reset_mac_header(skb);
 
-    tfm = mitm->shash;
+    tfm = mitm->proof_shash;
     desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
     if (!desc) {
         // error: no memory
@@ -161,8 +164,9 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
                 return MITM_FORWARD;
             }
 
+            // calculate MAC
 			/* From `hmac_sha256` at net/bluetooth/amp.c */
-			tfm = mitm->shash;
+			tfm = mitm->hmac_shash;
             desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
             if (!desc) {
                 // error: no memory
@@ -196,8 +200,6 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 			src_dev = br_fdb_find_port(br_dev, eth->h_source, 0);
 			rtnl_unlock();
 
-			// TODO: calculate the hash, fill it into `data`
-
 			// create `skbn` as a template
 			hlen = LL_RESERVED_SPACE(src_dev);
 			tlen = src_dev->needed_tailroom;
@@ -212,8 +214,25 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
             proof = skb_put(skbn, plen);
             skbn->protocol = htons(ETH_P_MITM_AUTH);
 
-            // copy hash
-            memcpy(proof->pkt_hash, data, SHA256_DIGEST_SIZE);
+			// calculate the hash, fill it into `proof->pkt_hash`
+			tfm = mitm->hash_shash;
+            desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
+            if (!desc) {
+                // error: no memory
+                kfree_skb(skbn);
+                netdev_err(mitm->dev, "cannot allocate shash_desc\n");
+                return MITM_FORWARD;
+            }
+            desc->tfm = tfm;
+
+            ret = crypto_shash_digest(desc, skb_mac_header(skb), skb->tail - skb->mac_header, proof->pkt_hash);
+            kfree(desc);
+            if (ret < 0) {
+                // error
+                kfree_skb(skbn);
+                netdev_err(mitm->dev, "crypto_shash_digest failed: err %d\n", ret);
+                return MITM_FORWARD;
+            }
 
 			// iterate over all slave devices of the bridge device
             netdev_for_each_lower_dev(br_dev, br_port_dev, iter) {

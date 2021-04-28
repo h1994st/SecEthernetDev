@@ -24,6 +24,7 @@
 #include <net/sch_generic.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <crypto/sha.h>
 
 /*
  * enum mitm_handler_result - Possible return values for handlers.
@@ -39,12 +40,24 @@ enum mitm_handler_result {
 	MITM_DROP
 };
 
+extern u8 hmac_key[SHA256_DIGEST_SIZE];
+#if MITM_ROLE == 2
+// TODO: we actually need an array to store keys for each slave device
+extern u8 proof_key[SHA256_DIGEST_SIZE];
+#endif
+
 /*
  * This structure is private to each device. It is used to pass
  * packets in and out, so there is place for a packet
  */
 struct mitm {
-    struct crypto_shash *shash;
+    struct crypto_shash *hmac_shash;
+#if MITM_ROLE == 2
+    struct crypto_shash *proof_shash;
+#endif
+#if MITM_ROLE == 1 || MITM_ROLE == 2
+    struct crypto_shash *hash_shash;
+#endif
 	struct net_device *dev;
 	spinlock_t lock;
 
