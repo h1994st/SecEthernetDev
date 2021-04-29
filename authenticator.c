@@ -164,7 +164,11 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
                 return MITM_FORWARD;
             }
 
-            // calculate MAC
+            // remove the appended MAC
+            skb->tail -= ARRAY_SIZE(data);
+            skb->len -= ARRAY_SIZE(data);
+
+            // calculate and verify MAC
 			/* From `hmac_sha256` at net/bluetooth/amp.c */
 			tfm = mitm->hmac_shash;
             desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
@@ -175,9 +179,6 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
             }
             desc->tfm = tfm;
 
-            // remove the appended MAC
-            skb->tail -= ARRAY_SIZE(data);
-            skb->len -= ARRAY_SIZE(data);
             ret = crypto_shash_digest(desc, skb_mac_header(skb), skb->tail - skb->mac_header, data);
             kfree(desc);
             if (ret < 0) {
