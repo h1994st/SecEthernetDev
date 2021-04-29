@@ -734,6 +734,9 @@ int __init mitm_init_module(void)
 
 	mitm = netdev_priv(mitm_dev);
 	mitm->hmac_shash = hmac_tfm;
+#if MITM_ROLE == 2
+	mitm->proof_shash = proof_tfm;
+#endif
 #if MITM_ROLE == 1 || MITM_ROLE == 2
     mitm->hash_shash = hash_tfm;
 #endif

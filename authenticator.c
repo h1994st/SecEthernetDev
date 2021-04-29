@@ -29,7 +29,7 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     struct sk_buff *skb;
     struct crypto_shash *tfm;
     struct shash_desc *desc;
-//    struct ethhdr *eth;
+    struct ethhdr *eth;
     struct proofhdr *proof;
     struct slave *slave = mitm_slave(mitm);
     struct net_device *slave_dev = slave->dev;
@@ -44,18 +44,20 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     skb->pkt_type = PACKET_OUTGOING;
 
     netdev_info(mitm->dev, "setup the hardware header\n");
-//    eth = skb_push(skb, ETH_HLEN);
-//    eth->h_proto = htons(ETH_P_MITM_AUTH);
-//    eth_broadcast_addr(eth->h_dest); // broadcast destination
+    eth = skb_push(skb, ETH_HLEN);
+    eth->h_proto = htons(ETH_P_MITM_AUTH);
+    eth_broadcast_addr(eth->h_dest); // broadcast destination
 //    eth_random_addr(eth->h_source); // random source address
-    ret = dev_hard_header(skb, slave_dev, ETH_P_MITM_AUTH, slave_dev->broadcast, NULL, skb->len);
-    if (ret < 0) {
-        netdev_err(mitm->dev, "dev_hard_header failed: err %d\n", ret);
-        goto failed;
-    }
+    memcpy(eth->h_source, slave_dev->dev_addr, ETH_ALEN); // use the MAC address of the slave device
+//    ret = dev_hard_header(skb, slave_dev, ETH_P_MITM_AUTH, slave_dev->broadcast, NULL, skb->len);
+//    if (ret < 0) {
+//        netdev_err(mitm->dev, "dev_hard_header failed: err %d\n", ret);
+//        goto failed;
+//    }
     // !!!: this is important, because we will use `skb->mac_header` later
     skb_reset_mac_header(skb);
 
+    // calculate new hmac
     tfm = mitm->proof_shash;
     desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
     if (!desc) {
@@ -66,7 +68,6 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     }
     desc->tfm = tfm;
 
-    // calculate new hmac
     netdev_info(mitm->dev, "calculate hmac for the proof packet\n");
     ret = crypto_shash_digest(desc, data, len, proof->proof_hmac);
     kfree(desc);
