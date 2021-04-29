@@ -290,6 +290,7 @@ static int mitm_enslave(struct net_device *mitm_dev, struct net_device *slave_de
 	struct mitm *mitm = netdev_priv(mitm_dev);
 	int res = 0;
 
+#ifndef MITM_DISABLE
 #if (MITM_ROLE == 2)
 	/* We only accept bridge device for the authenticator */
 	if (!netif_is_bridge_master(slave_dev)) {
@@ -297,6 +298,7 @@ static int mitm_enslave(struct net_device *mitm_dev, struct net_device *slave_de
 	    return -EPERM;
 	}
 	netdev_info(mitm_dev, "Enslaving a bridge master device\n");
+#endif
 #endif
 
 	/* We only mitm one device */
@@ -368,10 +370,12 @@ static int mitm_enslave(struct net_device *mitm_dev, struct net_device *slave_de
 		goto err_unregister;
 	}
 
+#ifndef MITM_DISABLE
 #if (MITM_ROLE == 2) /* authenticator */
 	res = dev_set_promiscuity(slave_dev, 1);
 	if (res)
 	    goto err_upper_unlink;
+#endif
 #endif
 
     /* set promiscuity level to new slave */
@@ -744,7 +748,10 @@ int __init mitm_init_module(void)
 
 	mitm->handle_ingress = mitm_from_slave;
     mitm->handle_egress  = mitm_from_master;
-//    mitm->handle_ingress = mitm->handle_egress = forward; // for measurement
+#ifdef MITM_DISABLE
+    // overwrite the hook APIs
+    mitm->handle_ingress = mitm->handle_egress = forward; // for measurement
+#endif
 
 #if MITM_ROLE == 1
     // initialize the hash table

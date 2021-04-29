@@ -1,5 +1,5 @@
 ifndef MITM_ROLE
-    override MITM_ROLE = 1
+    override MITM_ROLE = 2
 endif
 
 ifeq ($(MITM_ROLE),0)
@@ -18,6 +18,9 @@ ifeq ($(MITM_ROLE),2)
 endif
 
 MY_CFLAGS += -g -DDEBUG -DMITM_ROLE=${MITM_ROLE}
+ifdef DISABLE
+MY_CFLAGS += -DMITM_DISABLE
+endif
 ccflags-y += ${MY_CFLAGS}
 CC += ${MY_CFLAGS}
 
