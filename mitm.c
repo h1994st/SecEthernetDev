@@ -37,6 +37,7 @@
 #define DRV_NAME           "mitm_snd"
 #elif (MITM_ROLE == 1)
 #define DRV_NAME           "mitm_recv"
+#include "receiver.h"
 #elif (MITM_ROLE == 2)
 #define DRV_NAME           "mitm_auth"
 #else
@@ -743,11 +744,25 @@ int __init mitm_init_module(void)
 
 	mitm->handle_ingress = mitm_from_slave;
     mitm->handle_egress  = mitm_from_master;
+//    mitm->handle_ingress = mitm->handle_egress = forward; // for measurement
+
+#if MITM_ROLE == 1
+    // initialize the hash table
+    ret = mitm_skb_rht_init();
+    if (ret) {
+        netdev_err(mitm_dev, "mitm_skb_rht_init failed: err %d\n", ret);
+        goto rht_init_failed;
+    }
+#endif
 
 	netdev_info(mitm_dev, "Initialized module with interface %s\n", mitm_dev->name);
 
 	return 0;
 
+#if MITM_ROLE == 1
+rht_init_failed:
+    mitm_skb_rht_fini();
+#endif
 #if MITM_ROLE == 1 || MITM_ROLE == 2
 hash_crypto_alloc_failed:
 #endif
@@ -774,8 +789,15 @@ void __exit mitm_exit_module(void)
 {
     struct mitm *mitm = netdev_priv(mitm_dev);
 	crypto_free_shash(mitm->hmac_shash);
+#if MITM_ROLE == 2
+	crypto_free_shash(mitm->proof_shash);
+#endif
 #if MITM_ROLE == 1 || MITM_ROLE == 2
 	crypto_free_shash(mitm->hash_shash);
+#endif
+
+#if MITM_ROLE == 1
+    mitm_skb_rht_fini();
 #endif
 
 	debugfs_remove_recursive(debugfs_dir);

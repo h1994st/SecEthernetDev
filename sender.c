@@ -27,8 +27,8 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 enum mitm_handler_result mitm_from_master(struct mitm *mitm, struct sk_buff *skb)
 {
     uint16_t protocol = ntohs(vlan_get_protocol(skb));
-    uint8_t *header = skb_mac_header(skb);
-    struct ethhdr *eth = (struct ethhdr *)header;
+//    uint8_t *header = skb_mac_header(skb);
+//    struct ethhdr *eth = (struct ethhdr *)header;
 
     // If IPv4...
     if (protocol == ETH_P_IP) {
@@ -41,20 +41,20 @@ enum mitm_handler_result mitm_from_master(struct mitm *mitm, struct sk_buff *skb
             struct crypto_shash *tfm;
             struct shash_desc *desc;
             u8 data[SHA256_DIGEST_SIZE];
-            struct udphdr *udph = udp_hdr(skb);
+//            struct udphdr *udph = udp_hdr(skb);
 
-            uint16_t sport = ntohs(udph->source);
-            uint16_t dport = ntohs(udph->dest);
+//            uint16_t sport = ntohs(udph->source);
+//            uint16_t dport = ntohs(udph->dest);
 
             netdev_info(mitm->dev, "Observe outgoing broadcast UDP packets\n");
-            netdev_info(mitm->dev, "  Source:\n");
-            netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
-            netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
-            netdev_info(mitm->dev, "    Port: %hu\n", sport);
-            netdev_info(mitm->dev, "  Dest:\n");
-            netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
-            netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
-            netdev_info(mitm->dev, "    Port: %hu\n", dport);
+//            netdev_info(mitm->dev, "  Source:\n");
+//            netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
+//            netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
+//            netdev_info(mitm->dev, "    Port: %hu\n", sport);
+//            netdev_info(mitm->dev, "  Dest:\n");
+//            netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
+//            netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
+//            netdev_info(mitm->dev, "    Port: %hu\n", dport);
 
             netdev_info(
                     mitm->dev,
@@ -82,13 +82,13 @@ enum mitm_handler_result mitm_from_master(struct mitm *mitm, struct sk_buff *skb
             // attach MAC to the end of the buffer
             skb_put_data(skb, data, ARRAY_SIZE(data));
 
-            netdev_info(
-                    mitm->dev,
-                    "dump input data (i.e., the whole packet), %u bytes\n",
-                    skb->tail - skb->mac_header);
-            print_hex_dump(
-                    KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
-                    skb_mac_header(skb), skb->tail - skb->mac_header, true);
+//            netdev_info(
+//                    mitm->dev,
+//                    "dump input data (i.e., the whole packet), %u bytes\n",
+//                    skb->tail - skb->mac_header);
+//            print_hex_dump(
+//                    KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
+//                    skb_mac_header(skb), skb->tail - skb->mac_header, true);
         }
     }
 

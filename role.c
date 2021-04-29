@@ -67,5 +67,35 @@ enum mitm_handler_result on_ping(struct mitm *mitm, struct sk_buff *skb)
 
 enum mitm_handler_result forward(struct mitm *mitm __maybe_unused, struct sk_buff *skb __maybe_unused)
 {
+    uint16_t protocol = ntohs(vlan_get_protocol(skb));
+    uint8_t *header = skb_mac_header(skb);
+
+    // If IPv4...
+    if (protocol == ETH_P_IP) {
+        // Find IP header.
+        struct iphdr *iph = ip_hdr(skb);
+        struct ethhdr *eth = (struct ethhdr *) header;
+//		is_broadcast_ether_addr(eth->h_dest);
+        // UDP ...
+        if (iph->protocol == IPPROTO_UDP) {
+            struct udphdr *udph = udp_hdr(skb);
+
+            uint16_t sport = ntohs(udph->source);
+            uint16_t dport = ntohs(udph->dest);
+
+            netdev_info(mitm->dev, "forward an UDP packet\n");
+            netdev_info(mitm->dev, "  Source:\n");
+            netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
+            netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
+            netdev_info(mitm->dev, "    Port: %hu\n", sport);
+            netdev_info(mitm->dev, "  Dest:\n");
+            netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
+            netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
+            netdev_info(mitm->dev, "    Port: %hu\n", dport);
+
+            return MITM_FORWARD;
+        }
+    }
+
 	return MITM_FORWARD;
 }

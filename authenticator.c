@@ -77,17 +77,17 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
         goto failed;
     }
 
-    netdev_info(
-            mitm->dev,
-            "skb len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
-            skb->len, skb->data_len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
-    netdev_info(
-            mitm->dev,
-            "dump output data, %u bytes\n",
-            skb->tail - skb->mac_header);
-    print_hex_dump(
-            KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
-            skb_mac_header(skb), skb->tail - skb->mac_header, true);
+//    netdev_info(
+//            mitm->dev,
+//            "skb len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
+//            skb->len, skb->data_len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
+//    netdev_info(
+//            mitm->dev,
+//            "dump output data, %u bytes\n",
+//            skb->tail - skb->mac_header);
+//    print_hex_dump(
+//            KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
+//            skb_mac_header(skb), skb->tail - skb->mac_header, true);
 
     // send packet out
     netdev_info(mitm->dev, "send the proof packet to (%p)\n", to);
@@ -135,26 +135,25 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 			uint8_t *udp_payload_end = (uint8_t *)udph + ntohs(udph->len);
 			unsigned int tail_data_len = skb_tail_pointer(skb) - udp_payload_end;
 
-		    netdev_info(mitm->dev, "Observe incoming broadcast UDP packets\n");
-		    netdev_info(mitm->dev, "  Source:\n");
-		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
-		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
-		    netdev_info(mitm->dev, "  Dest:\n");
-		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
-		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
+//		    netdev_info(mitm->dev, "Observe incoming broadcast UDP packets\n");
+//		    netdev_info(mitm->dev, "  Source:\n");
+//		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
+//		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
+//		    netdev_info(mitm->dev, "  Dest:\n");
+//		    netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_dest);
+//		    netdev_info(mitm->dev, "    IP: %pI4\n", &iph->daddr);
 
-		    netdev_info(
-		            mitm->dev,
-		            "skb len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
-		            skb->len, skb->data_len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
-
-            netdev_info(
-                    mitm->dev,
-                    "dump input data (i.e., the whole packet), %u bytes\n",
-                    skb->tail - skb->mac_header);
-            print_hex_dump(
-                    KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
-                    skb_mac_header(skb), skb->tail - skb->mac_header, true);
+//		    netdev_info(
+//		            mitm->dev,
+//		            "skb len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
+//		            skb->len, skb->data_len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
+//            netdev_info(
+//                    mitm->dev,
+//                    "dump input data (i.e., the whole packet), %u bytes\n",
+//                    skb->tail - skb->mac_header);
+//            print_hex_dump(
+//                    KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
+//                    skb_mac_header(skb), skb->tail - skb->mac_header, true);
 
             netdev_info(mitm->dev, "tail pointer=%px\n", skb_tail_pointer(skb));
             netdev_info(mitm->dev, "udp payload end=%px, udp len=%hu\n", udp_payload_end, ntohs(udph->len));
