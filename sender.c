@@ -62,7 +62,7 @@ enum mitm_handler_result mitm_from_master(struct mitm *mitm, struct sk_buff *skb
                     skb->len, skb->data_len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
 
             /* From `hmac_sha256` at net/bluetooth/amp.c */
-            tfm = mitm->shash;
+            tfm = mitm->hmac_shash;
             desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
             if (!desc) {
                 // error: no memory

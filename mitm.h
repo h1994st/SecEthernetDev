@@ -12,13 +12,11 @@
 #include <linux/types.h>
 #include <linux/debugfs.h>
 #include <linux/rtnetlink.h>
-
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/netpoll.h>
-
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <net/sch_generic.h>

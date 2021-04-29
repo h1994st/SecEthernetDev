@@ -745,12 +745,15 @@ int __init mitm_init_module(void)
 
 	return 0;
 
+#if MITM_ROLE == 1 || MITM_ROLE == 2
 hash_crypto_alloc_failed:
-
+#endif
+#if MITM_ROLE == 2
 proof_setkey_failed:
     crypto_free_shash(proof_tfm);
 
 proof_crypto_alloc_failed:
+#endif
 
 hmac_setkey_failed:
     crypto_free_shash(hmac_tfm);

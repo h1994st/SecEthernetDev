@@ -1,5 +1,5 @@
 ifndef MITM_ROLE
-    override MITM_ROLE = 2
+    override MITM_ROLE = 1
 endif
 
 ifeq ($(MITM_ROLE),0)
