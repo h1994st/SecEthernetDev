@@ -100,6 +100,9 @@ int main(int argc, char *argv[]) {
 
   // Setting broadcast
   if (broadcast != 0) {
+    // `broadcast` should not have `bool` type, which will result in an error
+    // of "invalid argument"
+    // - `sizeof(bool)` depends on implementations
     if (setsockopt(
         sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast))
         == -1) {
