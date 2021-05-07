@@ -1,17 +1,12 @@
 // Client side implementation of UDP client-server model
 #include <time.h>
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
 #include <netinet/in.h>
-#include <net/if.h>
-#include <linux/if_ether.h>
 #include <linux/can.h>
 
 #include <pcap/pcap.h>

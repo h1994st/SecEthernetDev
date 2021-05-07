@@ -4,19 +4,30 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
 #include <netinet/in.h>
+#include <signal.h>
 
 #define PORT    8080
 #define MAXLINE 32
 
-// Driver code
+int sockfd = -1;
+uint8_t buffer[MAXLINE];
+
+void signal_handler(int signum) {
+  // close socket
+  if (sockfd != -1) close(sockfd);
+
+  exit(signum);
+}
+
 int main() {
-  int sockfd;
-  char buffer[MAXLINE];
   struct sockaddr_in servaddr, cliaddr;
+
+  // register handler
+  signal(SIGINT, signal_handler);
+  signal(SIGKILL, signal_handler);
+  signal(SIGTERM, signal_handler);
 
   // Creating socket file descriptor
   if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -48,13 +59,11 @@ int main() {
         sockfd, (char *) buffer, MAXLINE, MSG_WAITALL,
         (struct sockaddr *) &cliaddr, &len);
 
-    printf("Client:\n");
+    printf("Client: %ld bytes\n", n);
     for (int i = 0; i < n; ++i) {
       printf("%02X ", buffer[i]);
-      if ((i + 1) % 16 == 0)
-        printf("\n");
     }
-    printf("\n");
+    printf("\n\n");
   }
 
   close(sockfd);
