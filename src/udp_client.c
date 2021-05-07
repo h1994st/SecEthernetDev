@@ -1,49 +1,213 @@
 // Client side implementation of UDP client-server model
+#include <time.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <net/if.h>
+#include <linux/if_ether.h>
+#include <linux/can.h>
+
+#include <pcap/pcap.h>
 
 #define PORT    8080
 #define MAXLINE 1024
 
-// Driver code
-int main() {
-    int sockfd;
-    char buffer[MAXLINE];
-    char *hello = "Hello from client";
-    struct sockaddr_in servaddr;
+#define NANOSECONDS_PER_SECOND 1000000000L
 
-    // Creating socket file descriptor
-    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        perror("socket creation failed");
+// Driver code
+int main(int argc, char *argv[]) {
+  int ret = EXIT_SUCCESS;
+//  int ifindex = 0; // -i iface
+  bool broadcast = 0; // -b
+  int interval = 100; // -c millisec, default: 100 ms
+  double speed = 1; // -s speed
+  int repeat = 1; // -r repeat
+
+  int sockfd;
+  char buffer[MAXLINE];
+  char *hello = "Hello from client";
+  struct sockaddr_in servaddr;
+
+  // Parsing command-line options
+  int opt;
+//  while ((opt = getopt(argc, argv, "i:bc:s:r:")) != -1) {
+  while ((opt = getopt(argc, argv, "bc:s:r:")) != -1) {
+    switch (opt) {
+//      case 'i': {
+//        ifindex = if_nametoindex(optarg);
+//        if (ifindex == 0) {
+//          fprintf(stderr, "if_nametoindex: %s\n", strerror(errno));
+//          exit(EXIT_FAILURE);
+//        }
+//        break;
+//      }
+      case 'b': {
+        broadcast = 1;
+        break;
+      }
+      case 'c': {
+        interval = atoi(optarg);
+        if (interval < 0) {
+          fprintf(stderr, "interval must be non-negative integer\n");
+          exit(EXIT_FAILURE);
+        }
+        break;
+      }
+      case 's': {
+        speed = strtod(optarg, NULL);
+        if (speed < 0) {
+          fprintf(stderr, "speed must be positive\n");
+          exit(EXIT_FAILURE);
+        }
+        break;
+      }
+      case 'r': {
+        repeat = atoi(optarg);
+        if (repeat != -1 && repeat <= 0) {
+          fprintf(stderr, "repeat must be positive integer or -1\n");
+          exit(EXIT_FAILURE);
+        }
+        break;
+      }
+      default: {
+        fprintf(stderr, "unknown command-line options\n");
         exit(EXIT_FAILURE);
+      }
+    }
+  }
+
+  // Creating socket file descriptor
+  if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    perror("socket creation failed");
+    exit(EXIT_FAILURE);
+  }
+
+  // Binding to an interface
+//  if (ifindex != 0) {
+//    struct ip_mreqn mreqn;
+//    memset(&mreqn, 0, sizeof(mreqn));
+//    mreqn.imr_ifindex = ifindex;
+//    if (setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, &mreqn, sizeof(mreqn)) == -1) {
+//      perror("setsockopt failed");
+//      goto out;
+//    }
+//  }
+
+  // Setting broadcast
+  if (broadcast != 0) {
+    if (setsockopt(
+        sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast))
+        == -1) {
+      perror("setsockopt failed");
+      ret = EXIT_FAILURE;
+      goto out;
+    }
+  }
+
+  struct timespec deadline = {};
+  if (clock_gettime(CLOCK_MONOTONIC, &deadline) == -1) {
+    perror("clock_gettime failed");
+    ret = EXIT_FAILURE;
+    goto out;
+  }
+
+  memset(&servaddr, 0, sizeof(servaddr));
+
+  // Filling server information
+  servaddr.sin_family = AF_INET;
+  servaddr.sin_port = htons(PORT);
+  servaddr.sin_addr.s_addr = INADDR_ANY;
+
+  for (int i = 0; repeat == -1 || i < repeat; ++i) {
+    char errbuf[PCAP_ERRBUF_SIZE];
+    pcap_t *handle = pcap_open_offline_with_tstamp_precision(
+        argv[optind], PCAP_TSTAMP_PRECISION_NANO, errbuf);
+    if (!handle) {
+      fprintf(stderr, "pcap_open failed: %s\n", errbuf);
+      ret = EXIT_FAILURE;
+      goto out;
     }
 
-    memset(&servaddr, 0, sizeof(servaddr));
+    struct timespec start = {-1, -1};
+    struct timespec pcap_start = {-1, -1};
 
-    // Filling server information
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(PORT);
-    servaddr.sin_addr.s_addr = INADDR_ANY;
+    struct pcap_pkthdr header;
+    const u_char *p;
+    struct can_frame *can;
+    while ((p = pcap_next(handle, &header))) {
+      if (start.tv_nsec == -1) {
+        if (clock_gettime(CLOCK_MONOTONIC, &start) == -1) {
+          perror("clock_gettime failed");
+          ret = EXIT_FAILURE;
+          pcap_close(handle);
+          goto out;
+        }
+        pcap_start.tv_sec = header.ts.tv_sec;
+        // ???: do we need to convert this, as we use PCAP_TSTAMP_PRECISION_NANO
+        pcap_start.tv_nsec = header.ts.tv_usec;
+      }
 
-    int n, len;
+      // skip the first 16 bytes, Linux cooked capture v1 header
+      // https://wiki.wireshark.org/SLL
+      p += 16;
+      can = (struct can_frame *) p;
 
-    sendto(sockfd, (const char *) hello, strlen(hello),
-           MSG_CONFIRM, (const struct sockaddr *) &servaddr,
-           sizeof(servaddr));
-    printf("Hello message sent.\n");
+      if (interval != -1) {
+        // Use constant packet rate
+        deadline.tv_sec += interval / 1000L;
+        deadline.tv_nsec += (interval * 1000000L) % NANOSECONDS_PER_SECOND;
+      }
 
-    n = recvfrom(sockfd, (char *) buffer, MAXLINE,
-                 MSG_WAITALL, (struct sockaddr *) &servaddr,
-                 &len);
-    buffer[n] = '\0';
-    printf("Server : %s\n", buffer);
+      if (deadline.tv_nsec > NANOSECONDS_PER_SECOND) {
+        ++deadline.tv_sec;
+        deadline.tv_nsec -= NANOSECONDS_PER_SECOND;
+      }
 
-    close(sockfd);
-    return 0;
+      struct timespec now = {-1, -1};
+      if (clock_gettime(CLOCK_MONOTONIC, &now) == -1) {
+        perror("clock_gettime failed");
+        ret = EXIT_FAILURE;
+        pcap_close(handle);
+        goto out;
+      }
+
+      // sleep
+      if (deadline.tv_sec > now.tv_sec ||
+          (deadline.tv_sec == now.tv_sec && deadline.tv_nsec > now.tv_nsec)) {
+        if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL) != 0) {
+          perror("clock_nanosleep failed");
+          ret = EXIT_FAILURE;
+          pcap_close(handle);
+          goto out;
+        }
+      }
+
+      ssize_t len = sizeof(struct can_frame) - CAN_MAX_DLEN + can->can_dlc;
+      ssize_t n;
+
+      n = sendto(
+          sockfd, p, len, MSG_CONFIRM,
+          (const struct sockaddr *) &servaddr, sizeof(servaddr));
+      if (n != len) {
+        perror("sendto failed");
+        ret = EXIT_FAILURE;
+        pcap_close(handle);
+        goto out;
+      }
+      printf("CAN frame sent.\n");
+    }
+
+    pcap_close(handle);
+  }
+
+out:
+  close(sockfd);
+  return ret;
 }
