@@ -25,14 +25,12 @@
 int main(int argc, char *argv[]) {
   int ret = EXIT_SUCCESS;
 //  int ifindex = 0; // -i iface
-  bool broadcast = 0; // -b
+  int broadcast = 0; // -b
   int interval = 100; // -c millisec, default: 100 ms
   double speed = 1; // -s speed
   int repeat = 1; // -r repeat
 
   int sockfd;
-  char buffer[MAXLINE];
-  char *hello = "Hello from client";
   struct sockaddr_in servaddr;
 
   // Parsing command-line options
@@ -123,7 +121,8 @@ int main(int argc, char *argv[]) {
   // Filling server information
   servaddr.sin_family = AF_INET;
   servaddr.sin_port = htons(PORT);
-  servaddr.sin_addr.s_addr = INADDR_ANY;
+//  servaddr.sin_addr.s_addr = INADDR_ANY;
+  servaddr.sin_addr.s_addr = INADDR_BROADCAST;
 
   for (int i = 0; repeat == -1 || i < repeat; ++i) {
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -181,7 +180,8 @@ int main(int argc, char *argv[]) {
       // sleep
       if (deadline.tv_sec > now.tv_sec ||
           (deadline.tv_sec == now.tv_sec && deadline.tv_nsec > now.tv_nsec)) {
-        if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL) != 0) {
+        if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &deadline, NULL)
+            != 0) {
           perror("clock_nanosleep failed");
           ret = EXIT_FAILURE;
           pcap_close(handle);
