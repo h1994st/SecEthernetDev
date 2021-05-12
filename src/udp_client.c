@@ -190,6 +190,15 @@ int main(int argc, char *argv[]) {
       ssize_t len = sizeof(struct can_frame) - CAN_MAX_DLEN + can->can_dlc;
       ssize_t n;
 
+      // record the sending time
+      if (clock_gettime(CLOCK_MONOTONIC, &now) == -1) {
+        perror("clock_gettime failed");
+        ret = EXIT_FAILURE;
+        pcap_close(handle);
+        goto out;
+      }
+      printf("%lld.%.9ld: %ld bytes\n", (long long) now.tv_sec, now.tv_nsec, len);
+
       n = sendto(
           sockfd, p, len, MSG_CONFIRM,
           (const struct sockaddr *) &servaddr, sizeof(servaddr));
@@ -199,7 +208,6 @@ int main(int argc, char *argv[]) {
         pcap_close(handle);
         goto out;
       }
-      printf("CAN frame sent.\n");
     }
 
     pcap_close(handle);

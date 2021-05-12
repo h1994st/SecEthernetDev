@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <signal.h>
+#include <time.h>
 
 #define PORT    8080
 #define MAXLINE 32
@@ -22,6 +23,8 @@ void signal_handler(int signum) {
 }
 
 int main() {
+  int ret = EXIT_SUCCESS;
+  struct timespec now = {-1, -1};
   struct sockaddr_in servaddr, cliaddr;
 
   // register handler
@@ -32,7 +35,8 @@ int main() {
   // Creating socket file descriptor
   if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
     perror("socket creation failed");
-    exit(EXIT_FAILURE);
+    ret = EXIT_FAILURE;
+    goto out;
   }
 
   memset(&servaddr, 0, sizeof(servaddr));
@@ -46,8 +50,8 @@ int main() {
   // Bind the socket with the server address
   if (bind(sockfd, (const struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
     perror("bind failed");
-    close(sockfd);
-    exit(EXIT_FAILURE);
+    ret = EXIT_FAILURE;
+    goto out;
   }
 
   ssize_t n;
@@ -59,13 +63,22 @@ int main() {
         sockfd, (char *) buffer, MAXLINE, MSG_WAITALL,
         (struct sockaddr *) &cliaddr, &len);
 
-    printf("Client: %ld bytes\n", n);
-    for (int i = 0; i < n; ++i) {
-      printf("%02X ", buffer[i]);
+//    printf("Client: %ld bytes\n", n);
+//    for (int i = 0; i < n; ++i) {
+//      printf("%02X ", buffer[i]);
+//    }
+//    printf("\n\n");
+
+    // record the receiving time
+    if (clock_gettime(CLOCK_MONOTONIC, &now) == -1) {
+      perror("clock_gettime failed");
+      ret = EXIT_FAILURE;
+      goto out;
     }
-    printf("\n\n");
+    printf("%lld.%.9ld: %ld bytes\n", (long long) now.tv_sec, now.tv_nsec, n);
   }
 
+out:
   close(sockfd);
-  return 0;
+  return ret;
 }
