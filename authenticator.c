@@ -19,7 +19,7 @@
 #endif
 
 u8 hmac_key[SHA256_DIGEST_SIZE] = { 0x00 };
-u8 proof_key[SHA256_DIGEST_SIZE] = {0x01 };
+u8 proof_key[SHA256_DIGEST_SIZE] = { 0x01 };
 
 /* Taken out of net/bridge/br_forward.c */
 static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct sk_buff *skbn,
