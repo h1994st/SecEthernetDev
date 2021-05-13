@@ -78,7 +78,7 @@ enum mitm_handler_result forward(struct mitm *mitm __maybe_unused, struct sk_buf
 //		is_broadcast_ether_addr(eth->h_dest);
         // UDP ...
         if (iph->protocol == IPPROTO_UDP) {
-            struct udphdr *udph = udp_hdr(skb);
+//            struct udphdr *udph = udp_hdr(skb);
 
 //            uint16_t sport = ntohs(udph->source);
 //            uint16_t dport = ntohs(udph->dest);
