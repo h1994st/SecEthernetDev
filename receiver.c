@@ -62,7 +62,9 @@ enum mitm_handler_result handle_proof_packets(struct mitm *mitm, struct sk_buff 
 
     netdev_info(mitm->dev, "observe proof packets!\n");
 
+//    netdev_info(mitm->dev, "before mitm_skb_rht_get\n");
     skb_entry = mitm_skb_rht_get(proof->pkt_hash);
+//    netdev_info(mitm->dev, "after mitm_skb_rht_get\n");
     if (!skb_entry) {
         netdev_err(mitm->dev, "drop the proof packet, as no corresponding packet exists!\n");
         return MITM_DROP;
@@ -71,6 +73,7 @@ enum mitm_handler_result handle_proof_packets(struct mitm *mitm, struct sk_buff 
 
     // calculate and verify MAC
     tfm = mitm->hmac_shash;
+//    netdev_info(mitm->dev, "before allocating shash_desc for hmac-sha256: %zu bytes\n", sizeof(struct shash_desc) + crypto_shash_descsize(tfm));
     desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
     if (!desc) {
         // error: no memory
@@ -79,8 +82,11 @@ enum mitm_handler_result handle_proof_packets(struct mitm *mitm, struct sk_buff 
     }
     desc->tfm = tfm;
 
+//    netdev_info(mitm->dev, "before crypto_shash_digest for hmac-sha256: %u bytes\n", old_skb->tail - old_skb->mac_header);
     ret = crypto_shash_digest(desc, skb_mac_header(old_skb), old_skb->tail - old_skb->mac_header, data);
+//    netdev_info(mitm->dev, "after crypto_shash_digest\n");
     kfree(desc);
+//    netdev_info(mitm->dev, "after freeing shash_desc\n");
     if (ret < 0) {
         // error
         netdev_err(mitm->dev, "crypto_shash_digest failed: err %d\n", ret);
@@ -88,6 +94,7 @@ enum mitm_handler_result handle_proof_packets(struct mitm *mitm, struct sk_buff 
     }
 
     // verify the digest
+//    netdev_info(mitm->dev, "before crypto_memneq: 32 bytes\n");
     ret = crypto_memneq(data, proof->proof_hmac, ARRAY_SIZE(data));
     if (ret) {
         // non-equal
@@ -99,7 +106,9 @@ enum mitm_handler_result handle_proof_packets(struct mitm *mitm, struct sk_buff 
     // remove the entry
     netdev_info(mitm->dev, "remove skb_entry=%p from the hash table\n", skb_entry);
     rhashtable_remove_fast(&mitm_skb_hash_tbl, &skb_entry->rhnode, mitm_skb_rht_params);
+//    netdev_info(mitm->dev, "before freeing skb_entry=%p\n", skb_entry);
     kfree(skb_entry);
+//    netdev_info(mitm->dev, "after kfree\n");
     skb_entry = NULL;
 
     // delivery the packet
@@ -134,7 +143,7 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 //            uint16_t sport = ntohs(udph->source);
 //            uint16_t dport = ntohs(udph->dest);
 
-//            netdev_info(mitm->dev, "Observe incoming broadcast UDP packets\n");
+            netdev_info(mitm->dev, "Observe incoming broadcast UDP packets\n");
 //            netdev_info(mitm->dev, "  Source:\n");
 //            netdev_info(mitm->dev, "    MAC: %pM\n", eth->h_source);
 //            netdev_info(mitm->dev, "    IP: %pI4\n", &iph->saddr);
@@ -172,6 +181,7 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 
             // calculate the hash
 			tfm = mitm->hash_shash;
+//			netdev_info(mitm->dev, "before allocating shash_desc for sha256: %zu bytes\n", sizeof(struct shash_desc) + crypto_shash_descsize(tfm));
             desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
             if (!desc) {
                 // error: no memory
@@ -180,31 +190,41 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
             }
             desc->tfm = tfm;
 
+//            netdev_info(mitm->dev, "before crypto_shash_digest for sha256: %u bytes\n", skb->tail - skb->mac_header);
             ret = crypto_shash_digest(desc, skb_mac_header(skb), skb->tail - skb->mac_header, data);
+//            netdev_info(mitm->dev, "after crypto_shash_digest\n");
             kfree(desc);
+            netdev_info(mitm->dev, "after freeing shash_desc\n");
             if (ret < 0) {
                 // error
                 netdev_err(mitm->dev, "crypto_shash_digest failed: err %d\n", ret);
                 return MITM_FORWARD;
             }
 
-            // TODO: store the packet in a hash table
+            // store the packet in a hash table
+//            netdev_info(mitm->dev, "before mitm_skb_rht_get\n");
             skb_entry = mitm_skb_rht_get(data);
+//            netdev_info(mitm->dev, "after mitm_skb_rht_get\n");
             if (skb_entry) {
                 // duplicate packets?
                 netdev_info(mitm->dev, "the packet has already existed\n");
                 return MITM_FORWARD;
             }
 
+//            netdev_info(mitm->dev, "before allocating mitm_skb_entry for insertion: %zu bytes\n", sizeof(struct mitm_skb_entry));
             skb_entry = kzalloc(sizeof(struct mitm_skb_entry), GFP_ATOMIC);
             if (unlikely(!skb_entry)) {
                 // error: no memory
                 netdev_err(mitm->dev, "cannot allocate mitm_skb_entry\n");
                 return MITM_FORWARD;
             }
+//            netdev_info(mitm->dev, "after allocating mitm_skb_entry\n");
 
             skb_entry->skb = skb;
+//            netdev_info(mitm->dev, "before memcpy: 32 bytes\n");
             memcpy(skb_entry->skb_hash, data, ARRAY_SIZE(data));
+//            netdev_info(mitm->dev, "after memcpy\n");
+//            netdev_info(mitm->dev, "before rhashtable_insert_fast\n");
             ret = rhashtable_insert_fast(&mitm_skb_hash_tbl, &skb_entry->rhnode, mitm_skb_rht_params);
             if (ret) {
                 // error
@@ -212,6 +232,7 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
                 netdev_err(mitm->dev, "rhashtable_insert_fast failed: err %d\n", ret);
                 return MITM_FORWARD;
             }
+//            netdev_info(mitm->dev, "after rhashtable_insert_fast\n");
 
             // consumed the packet by default
             // TODO: will the sk_buff be released elsewhere?
