@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <linux/can.h>
+#include <net/if.h>
 
 #include <pcap/pcap.h>
 
@@ -19,7 +20,9 @@
 // Driver code
 int main(int argc, char *argv[]) {
   int ret = EXIT_SUCCESS;
-//  int ifindex = 0; // -i iface
+  int ifindex = 0; // -i iface
+  char ifname[IF_NAMESIZE];
+  size_t ifname_len;
   int broadcast = 0; // -b
   int interval = 100; // -c millisec, default: 100 ms
   double speed = 1; // -s speed
@@ -30,17 +33,19 @@ int main(int argc, char *argv[]) {
 
   // Parsing command-line options
   int opt;
-//  while ((opt = getopt(argc, argv, "i:bc:s:r:")) != -1) {
-  while ((opt = getopt(argc, argv, "bc:s:r:")) != -1) {
+  while ((opt = getopt(argc, argv, "i:bc:s:r:")) != -1) {
+//  while ((opt = getopt(argc, argv, "bc:s:r:")) != -1) {
     switch (opt) {
-//      case 'i': {
-//        ifindex = if_nametoindex(optarg);
-//        if (ifindex == 0) {
-//          fprintf(stderr, "if_nametoindex: %s\n", strerror(errno));
-//          exit(EXIT_FAILURE);
-//        }
-//        break;
-//      }
+      case 'i': {
+        ifindex = if_nametoindex(optarg);
+        if (ifindex == 0) {
+          perror("if_nametoindex failed");
+          exit(EXIT_FAILURE);
+        }
+        ifname_len = strlen(optarg);
+        memcpy(ifname, optarg, ifname_len + 1);
+        break;
+      }
       case 'b': {
         broadcast = 1;
         break;
@@ -83,15 +88,14 @@ int main(int argc, char *argv[]) {
   }
 
   // Binding to an interface
-//  if (ifindex != 0) {
-//    struct ip_mreqn mreqn;
-//    memset(&mreqn, 0, sizeof(mreqn));
-//    mreqn.imr_ifindex = ifindex;
-//    if (setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, &mreqn, sizeof(mreqn)) == -1) {
-//      perror("setsockopt failed");
-//      goto out;
-//    }
-//  }
+  if (ifindex != 0) {
+    if (setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, ifname, ifname_len)
+        == -1) {
+      perror("setsockopt failed");
+      ret = EXIT_FAILURE;
+      goto out;
+    }
+  }
 
   // Setting broadcast
   if (broadcast != 0) {
@@ -197,7 +201,8 @@ int main(int argc, char *argv[]) {
         pcap_close(handle);
         goto out;
       }
-      printf("%lld.%.9ld: %ld bytes\n", (long long) now.tv_sec, now.tv_nsec, len);
+      printf(
+          "%lld.%.9ld: %ld bytes\n", (long long) now.tv_sec, now.tv_nsec, len);
 
       n = sendto(
           sockfd, p, len, MSG_CONFIRM,
