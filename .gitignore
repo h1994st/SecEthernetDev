@@ -117,8 +117,8 @@ all.config
 !.travis.yml
 
 
-# Created by https://www.toptal.com/developers/gitignore/api/linux,clion,vim,macos
-# Edit at https://www.toptal.com/developers/gitignore?templates=linux,clion,vim,macos
+# Created by https://www.toptal.com/developers/gitignore/api/linux,clion,vim,macos,visualstudiocode
+# Edit at https://www.toptal.com/developers/gitignore?templates=linux,clion,vim,macos,visualstudiocode
 
 ### CLion ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
@@ -287,4 +287,17 @@ tags
 # Persistent undo
 [._]*.un~
 
-# End of https://www.toptal.com/developers/gitignore/api/linux,clion,vim,macos
+### VisualStudioCode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+### VisualStudioCode Patch ###
+# Ignore all local history of files
+.history
+.ionide
+
+# End of https://www.toptal.com/developers/gitignore/api/linux,clion,vim,macos,visualstudiocode
