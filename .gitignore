@@ -1,3 +1,6 @@
+# -- by h1994st
+build/
+
 # Linux' top-lvel .gitignore
 .*
 *.a
