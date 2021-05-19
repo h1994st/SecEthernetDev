@@ -27,16 +27,17 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 enum mitm_handler_result mitm_from_master(struct mitm *mitm, struct sk_buff *skb)
 {
     uint16_t protocol = ntohs(vlan_get_protocol(skb));
-//    uint8_t *header = skb_mac_header(skb);
-//    struct ethhdr *eth = (struct ethhdr *)header;
+    uint8_t *header = skb_mac_header(skb);
 
     // If IPv4...
     if (protocol == ETH_P_IP) {
         // Find IP header.
         struct iphdr *iph = ip_hdr(skb);
+        struct ethhdr *eth = (struct ethhdr *) header;
+		bool is_broadcast = is_broadcast_ether_addr(eth->h_dest);
 
         // UDP ...
-        if (iph->protocol == IPPROTO_UDP) {
+        if (iph->protocol == IPPROTO_UDP && is_broadcast) {
             int ret;
             struct crypto_shash *tfm;
             struct shash_desc *desc;

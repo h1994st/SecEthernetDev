@@ -123,9 +123,9 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 		// Find IP header.
 		struct iphdr *iph = ip_hdr(skb);
 		struct ethhdr *eth = (struct ethhdr *)header;
-//		is_broadcast_ether_addr(eth->h_dest);
+		bool is_broadcast = is_broadcast_ether_addr(eth->h_dest);
 		// UDP ...
-		if (iph->protocol == IPPROTO_UDP) {
+		if (iph->protocol == IPPROTO_UDP && is_broadcast) {
             int ret;
             struct sk_buff *skbn; // new skb
             struct proofhdr *proof;
