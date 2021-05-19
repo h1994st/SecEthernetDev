@@ -34,12 +34,24 @@
 #define DRV_RELDATE        "2020-04-14"
 #define DRV_DESCRIPTION    "Network driver Man-In-The-Middle'r"
 #if (MITM_ROLE == 0)
+
 #define DRV_NAME           "mitm_snd"
+
 #elif (MITM_ROLE == 1)
+
 #define DRV_NAME           "mitm_recv"
 #include "receiver.h"
+
 #elif (MITM_ROLE == 2)
+
 #define DRV_NAME           "mitm_auth"
+#include "authenticator.h"
+
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+#include <linux/netfilter.h>
+#include <linux/netfilter_bridge.h>
+#endif
+
 #else
 #error "MITM_ROLE is not defined!"
 #endif
@@ -281,6 +293,35 @@ static int mitm_set_carrier(struct mitm *mitm)
 	return 0;
 }
 
+/*-------------------------------- Netfilter --------------------------------*/
+#if (MITM_ROLE == 2)
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+#include <linux/netfilter.h>
+#include <linux/netfilter_bridge.h>
+
+static int br_debug_nf_register(struct net *net)
+{
+    if (net_eq(net, &init_net)) {
+        // do not hook the root network namespace
+        return 0;
+    }
+
+    return nf_register_net_hooks(net, br_debug_nf_ops,
+                                 ARRAY_SIZE(br_debug_nf_ops));
+}
+
+static void br_debug_nf_unregister(struct net *net)
+{
+    if (net_eq(net, &init_net)) {
+        // no hook for the root network namespace
+        return;
+    }
+
+    nf_unregister_net_hooks(net, br_debug_nf_ops,
+                            ARRAY_SIZE(br_debug_nf_ops));
+}
+#endif
+#endif
 
 /*--------------------------------- Slavery ---------------------------------*/
 
@@ -292,13 +333,18 @@ static int mitm_enslave(struct net_device *mitm_dev, struct net_device *slave_de
 
 #ifndef MITM_DISABLE
 #if (MITM_ROLE == 2)
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER) /* w/ bridge netfilter */
+	int i; // used later
+	struct net *mitm_ns = dev_net(mitm_dev);
+#endif /* IS_ENABLED(CONFIG_BRIDGE_NETFILTER) */
+
 	/* We only accept bridge device for the authenticator */
 	if (!netif_is_bridge_master(slave_dev)) {
 	    netdev_err(mitm_dev, "mitm authenticator can only enslave a bridge device\n");
 	    return -EPERM;
 	}
 	netdev_info(mitm_dev, "Enslaving a bridge master device\n");
-#endif
+#endif /* MITM_ROLE == 2 */
 #endif
 
 	/* We only mitm one device */
@@ -375,6 +421,18 @@ static int mitm_enslave(struct net_device *mitm_dev, struct net_device *slave_de
 	res = dev_set_promiscuity(slave_dev, 1);
 	if (res)
 	    goto err_upper_unlink;
+
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER) /* w/ bridge netfilter */
+	/* set private date for hooks */
+	for (i = 0; i < ARRAY_SIZE(br_debug_nf_ops); ++i) {
+        br_debug_nf_ops[i].priv = (void *) mitm;
+	}
+
+	netdev_info(mitm_dev, "Registering netfilter hooks\n");
+	res = br_debug_nf_register(mitm_ns);
+	if (res)
+	    goto err_upper_unlink;
+#endif
 #endif
 #endif
 
@@ -448,6 +506,14 @@ static int mitm_emancipate(struct net_device *mitm_dev, struct net_device *slave
 	struct slave *slave;
 	int old_flags = mitm_dev->flags;
 
+#ifndef MITM_DISABLE
+#if (MITM_ROLE == 2)
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER) /* w/ bridge netfilter */
+	struct net *mitm_ns = dev_net(mitm_dev);
+#endif /* IS_ENABLED(CONFIG_BRIDGE_NETFILTER) */
+#endif /* MITM_ROLE == 2 */
+#endif
+
 	if (!slave_dev)
 		slave_dev = mitm->slave.dev;
 
@@ -481,8 +547,15 @@ static int mitm_emancipate(struct net_device *mitm_dev, struct net_device *slave
 	call_netdevice_notifiers(NETDEV_CHANGEADDR, mitm->dev);
 	call_netdevice_notifiers(NETDEV_RELEASE, mitm->dev);
 
+#ifndef MITM_DISABLE
 #if (MITM_ROLE == 2) /* authenticator */
 	dev_set_promiscuity(slave_dev, -1);
+
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER) /* w/ bridge netfilter */
+	netdev_info(mitm_dev, "Unregistering netfilter hooks\n");
+	br_debug_nf_unregister(mitm_ns);
+#endif
+#endif
 #endif
 
 	if (old_flags & IFF_PROMISC)

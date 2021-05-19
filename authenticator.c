@@ -285,3 +285,86 @@ enum mitm_handler_result mitm_from_master(struct mitm *mitm, struct sk_buff *skb
 {
 	return forward(mitm, skb);
 }
+
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+#include <linux/netfilter.h>
+#include <linux/netfilter_bridge.h>
+
+static unsigned int prev_skb_len = 0;
+
+// The following two functions are hooked to `NF_BR_PRE_ROUTING` with different
+// priority. Therefore, they will be called sequentially.
+static unsigned int br_pre_routing_first_hookfn(void *priv,
+                                                struct sk_buff *skb,
+                                                const struct nf_hook_state *state)
+{
+    struct mitm *mitm = (struct mitm *) priv;
+
+    netdev_info(mitm->dev, "NF_BR_PRE_ROUTING first\n");
+    netdev_info(
+        mitm->dev, "skb=%px: len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
+        skb, skb->len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
+
+    prev_skb_len = skb->len;
+
+    return NF_ACCEPT;
+}
+
+static unsigned int br_pre_routing_last_hookfn(void *priv,
+                                               struct sk_buff *skb,
+                                               const struct nf_hook_state *state)
+{
+    struct mitm *mitm = (struct mitm *) priv;
+
+    netdev_info(mitm->dev, "NF_BR_PRE_ROUTING last\n");
+    netdev_info(
+        mitm->dev, "skb=%px: len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
+        skb, skb->len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
+
+    if (skb->len == prev_skb_len)
+        return NF_ACCEPT;
+
+    // adjust inconsistent length
+    netdev_info(mitm->dev, "adjust skb->len\n");
+    skb->len = prev_skb_len;
+    skb_set_tail_pointer(skb, prev_skb_len);
+
+    return NF_ACCEPT;
+}
+
+static unsigned int br_local_in_hookfn(void *priv,
+                                       struct sk_buff *skb,
+                                       const struct nf_hook_state *state)
+{
+    struct mitm *mitm = (struct mitm *) priv;
+
+    netdev_info(mitm->dev, "NF_BR_LOCAL_IN\n");
+    netdev_info(
+        mitm->dev, "skb=%px: len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
+        skb, skb->len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
+    return NF_ACCEPT;
+}
+
+struct nf_hook_ops br_debug_nf_ops[NUM_BR_NF_HOOKS] = {
+    {
+        .hook = br_pre_routing_first_hookfn,
+        .pf = NFPROTO_BRIDGE,
+        .hooknum = NF_BR_PRE_ROUTING,
+        .priority = NF_BR_PRI_FIRST,
+        .priv = NULL, // will fill later
+    },
+    {
+        .hook = br_pre_routing_last_hookfn,
+        .pf = NFPROTO_BRIDGE,
+        .hooknum = NF_BR_PRE_ROUTING,
+        .priority = NF_BR_PRI_LAST,
+        .priv = NULL, // will fill later
+    },
+    {
+        .hook = br_local_in_hookfn,
+        .pf = NFPROTO_BRIDGE,
+        .hooknum = NF_BR_LOCAL_IN,
+        .priority = NF_BR_PRI_FIRST,
+    },
+};
+#endif
