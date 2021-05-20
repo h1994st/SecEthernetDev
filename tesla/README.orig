@@ -1,0 +1,72 @@
+Tesla Library v0.1 March 2003
+Copyright (c) Carnegie Mellon University 2003
+All rights reserved
+This is experimental code, use at your own risk.
+For more information on the TESLA protocol, see:
+http://www.ece.cmu.edu/~adrian/tesla.html
+http://www.ece.cmu.edu/~adrian/projects/tesla-cryptobytes/tesla-cryptobytes.pdf
+http://www.securemulticast.org/draft-ietf-msec-tesla-intro-01.txt
+http://www.securemulticast.org/draft-ietf-msec-tesla-spec-00.txt
+
+DESCRIPTION
+-----------
+
+The Tesla Library is an implementation of the TESLA protocol.
+Presently, it is a basic library implementing the basic Tesla
+authentication scheme. It lacks instant authentication, and many of
+the optional features and schemes described in the Tesla introduction.
+
+OVERVIEW
+--------
+
+The Tesla library includes:
+
+libtesla.so:
+  A shared version of the tesla library.  This contains all of the
+functions necessary for client and sender bootstrapping and
+authentication.  Future documentation includes detailed information on
+how to use the tesla client and sender API.
+
+libtesla.a:
+  Static version of the tesla library.
+
+sample_server:
+  A simple application to illustrate how to use the tesla sender
+library in a very basic udp application.
+
+sample_client:
+  A simple client application to interact with the server and
+show how to use the tesla client library.
+
+tesla_test:
+  A test application to ensure that the tesla library is working
+properly.
+
+BUILDING THE LIBRARY
+--------------------
+
+  Presently, the makefile supports builds under Linux, use on other
+operating systems at your own risk.  To quickly get started, do:
+
+make
+make install
+./tesla_test
+
+Which will install the tesla library in /usr/lib, and then
+test to make sure the API is working properly.
+
+To build any of the targets described in the overview, simply
+type make [target_name].  Typing 'make' will build the shared
+library, tesla_test, sample_client, and sample_server.
+
+Tesla relies on OpenSSL.  It assumes the headers and libraries to be
+in appropriate subdirectories of /usr/local/ssl.  To change the
+default behavior, when making, specify an OPENSSLDIR, such as: make
+OPENSSLDIR=/usr/openssl-0.9.6g
+
+USING THE TESLA LIBRARY
+-----------------------
+
+To build an application using libtesla, include the appropriate
+tesla headers, and link against both libtesla, and the openssl
+crypto library by specifying -ltesla -lcrypto.

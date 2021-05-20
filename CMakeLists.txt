@@ -11,4 +11,8 @@ endif ()
 # C++ language standard
 set(CMAKE_CXX_STANDARD 14)
 
-add_subdirectory(src)
+# CAN over UDP
+add_subdirectory(can_udp)
+
+# TESLA
+add_subdirectory(tesla)
