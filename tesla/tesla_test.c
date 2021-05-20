@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
     perror("fopen failed");
     exit(EXIT_FAILURE);
   }
-  PEM_read_PrivateKey(pfile, &pkey, NULL, NULL);
+  pkey = PEM_read_PrivateKey(pfile, NULL, NULL, NULL);
   fclose(pfile);
 
   pfile = fopen(argv[2], "rb");
@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
     perror("fopen failed");
     exit(EXIT_FAILURE);
   }
-  PEM_read_PUBKEY(pfile, &pubkey, NULL, NULL);
+  pubkey = PEM_read_PUBKEY(pfile, NULL, NULL, NULL);
   fclose(pfile);
 
   if (pkey == NULL || pubkey == NULL) goto error;
