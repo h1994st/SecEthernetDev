@@ -16,6 +16,9 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #endif
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
 
 #define T_INT 1000
 #define D_INT 3
@@ -57,7 +60,7 @@ int main(void) {
   OpenSSL_add_all_digests();
 
   X509V3_add_standard_extensions();
-  SSLeay_add_all_algorithms();
+
   //read the private key
   pfile = fopen("privkey.pem", "r");
   if (pfile == NULL) ERR("Couldn't open private key");
@@ -108,7 +111,7 @@ int main(void) {
     CHECKNEGPE(recv(peerfd, (char *) &nlen, 4, MSG_WAITALL));//read the nlength
     nlen = ntohl(nlen);
     BUFBIG(nlen);
-    printf("Server: Receiving nonce %i\n", nlen);
+    printf("Server: Receiving nonce %ld\n", nlen);
     CHECKNEGPE(recv(peerfd, replybuffer, nlen, MSG_WAITALL));
     //we've got the nonce
     printf("Server: Nonce received\n");
@@ -154,7 +157,7 @@ int main(void) {
         sockfd, (struct sockaddr *) &inetaddr, sizeof(struct sockaddr_in)));
     //the outgoing udp port is set up
     //set up the address of this client
-    memset((char *) &receiver, 0, sizeof(inetaddr));
+    memset(&receiver, 0, sizeof(struct sockaddr_in));
     receiver.sin_family = AF_INET;
     receiver.sin_addr.s_addr = htonl(client_ip);
     receiver.sin_port = htons(CLIENTPORT);
@@ -172,13 +175,13 @@ int main(void) {
       if (i % 3 != 0)
         CHECKNEGPE(sendto(
             sockfd, data, dlen + 4, 0,
-            &receiver, sizeof(receiver)));
+            (struct sockaddr *) &receiver, sizeof(receiver)));
 
       if (i % 2 != 0) {
         memcpy(data, &RAND[i], 4);
         CHECKNEGPE(sendto(
             sockfd, data, dlen + 4, 0,
-            &receiver, sizeof(receiver)));
+            (struct sockaddr *) &receiver, sizeof(receiver)));
       }
       sleep(1);
     }

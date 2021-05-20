@@ -13,6 +13,8 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #endif
+#include <stdlib.h>
+#include <string.h>
 
 #define TERROR(rc) if(rc!=TESLA_OK) {\
   printf("Client failed %s:%i\n",__FILE__,__LINE__);goto error;}
@@ -28,7 +30,7 @@ int main(int argc, char **argv) {
   struct hostent *hp;
   struct sockaddr_in inetaddr;
   int outport;
-  size_t inetaddrlen;
+  socklen_t inetaddrlen;
   int Datasocket;
   int Servsocket;
 #ifdef WIN32
@@ -66,6 +68,7 @@ int main(int argc, char **argv) {
     exit(-1);
   }
   pubkey = PEM_read_PUBKEY(pfile, NULL, NULL, NULL);
+  fclose(pfile);
 
   client_alloc(&client);
   client_set_pkey(&client, pubkey);
