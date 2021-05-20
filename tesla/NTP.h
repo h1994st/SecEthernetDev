@@ -11,7 +11,7 @@ typedef struct {
 } NTP_t;
 
 //size of NTP when written in bytes
-#define NTP_SIZE 8
+#define NTP_SIZE (2 * sizeof(uint32))
 
 void NTP_now(NTP_t *c);//current time
 NTP_t NTP_dif(NTP_t *a, NTP_t *b);//a-b

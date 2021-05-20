@@ -2,10 +2,12 @@
 #ifndef TESLA_DEFS_H
 #define TESLA_DEFS_H
 
-typedef long int32;
-typedef unsigned long uint32;
-typedef short int16;
-typedef long long int64;
+#include <stdint.h>
+
+typedef int32_t int32;
+typedef uint32_t uint32;
+typedef int16_t int16;
+typedef int64_t int64;
 typedef char bool;
 
 #define FALSE 0

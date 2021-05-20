@@ -25,7 +25,7 @@
 #define TERROR(rc) if(rc!=TESLA_OK) goto error
 #define ERR(msg) {printf(msg); goto error;}
 
-int main(void) {
+int main(int argc, char **argv) {
   //sender object
   tesla_sender_session server;
   //T_int, how long we want the intervals to be
@@ -62,12 +62,16 @@ int main(void) {
   X509V3_add_standard_extensions();
 
   //read the private key
-  pfile = fopen("privkey.pem", "r");
-  if (pfile == NULL) ERR("Couldn't open private key");
+  if (argc > 1)
+    pfile = fopen(argv[1], "rb");
+  else
+    pfile = fopen("privkey.pem", "rb");
+  if (pfile == NULL)
+    ERR("Couldn't open private key");
   pkey = PEM_read_PrivateKey(pfile, NULL, NULL, NULL);
-  if (pkey == NULL) ERR("Couldn't read private key");
+  if (pkey == NULL)
+    ERR("Couldn't read private key");
   fclose(pfile);
-
 
   /*Sender set up, allocate the session structure and start the sender session */
   T_int = NTP_fromMillis(T_INT);
