@@ -7,7 +7,7 @@
 #define IP_ADDR_FORMAT(x) (int) (((x) >> 24) & 0xff), (int) (((x) >> 16) & 0xff), \
                           (int) (((x) >> 8) & 0xff), (int) ((x) & 0xff)
 
-void printbuf(char *,int);
+void printbuf(char *, int);
 
 #ifdef WIN32
 void handle_error(void);

@@ -20,8 +20,8 @@ octet_stream make_octet(void *buf);
 /* Octetwrt and read are the most primitive functions
    They write len bytes from s2 to the internal buffer
 */
-void octetwrt(octet_stream *str,void const *s2,int len);
-void octetrd(octet_stream *,void *,int);
+void octetwrt(octet_stream *str, void const *s2, int len);
+void octetrd(octet_stream *, void *, int);
 
 /* rpad and wpad will align the stream for the next read or write
    respectively.  In the case of write, the data will be padded with 0's
@@ -35,11 +35,11 @@ void wpad(octet_stream *);
 */
 #define octet_buf(str) ((str)->cbuff-(str)->pos)
 #define octet_tell(str) ((str)->pos)
-#define octet_skip(str,num) (str)->pos+=num;(str)->cbuff+=num
+#define octet_skip(str, num) (str)->pos+=num;(str)->cbuff+=num
 
 /* Functions for writing NTP objects to the stream */
-void wNTP(octet_stream *str,NTP_t *a);
-void rNTP(octet_stream *str,NTP_t *a);
+void wNTP(octet_stream *str, NTP_t *a);
+void rNTP(octet_stream *str, NTP_t *a);
 
 /*
   octet_wint16, octet_wint32,octet_wint64 and the read functions respectively
@@ -54,19 +54,18 @@ void rNTP(octet_stream *str,NTP_t *a);
 #define octet_wint64(str,k) octetwrt(str,(int64 *)k,sizeof(int64))
 #define octet_rint64(str,k) octetrd(str,(int64 *)k,sizeof(int64))
 #else
-inline void octet_wint16(octet_stream *,int16 *);
-inline void octet_rint16(octet_stream *,int16 *);
-inline void octet_wint32(octet_stream *,int32 *);
-inline void octet_rint32(octet_stream *,int32 *);
-inline void octet_wint64(octet_stream *,int64 *);
-inline void octet_rint64(octet_stream *,int64 *);
+inline void octet_wint16(octet_stream *, int16 *);
+inline void octet_rint16(octet_stream *, int16 *);
+inline void octet_wint32(octet_stream *, int32 *);
+inline void octet_rint32(octet_stream *, int32 *);
+inline void octet_wint64(octet_stream *, int64 *);
+inline void octet_rint64(octet_stream *, int64 *);
 #endif
 /* wbyte/rbyte writes or reads a byte to the stream */
-#define octet_wbyte(str,c) octetwrt(str,(char *)c,sizeof(char))
-#define octet_rbyte(str,c) octetrd(str,(char *)c,sizeof(char)) 
-TESLA_ERR octetEVPread(octet_stream *,EVP_MD_CTX *,EVP_PKEY *,int16);
-TESLA_ERR octetEVPSign(octet_stream *str,EVP_MD_CTX *ctx,EVP_PKEY *pkey,int16 slen);
-
-
+#define octet_wbyte(str, c) octetwrt(str,(char *)c,sizeof(char))
+#define octet_rbyte(str, c) octetrd(str,(char *)c,sizeof(char))
+TESLA_ERR octetEVPread(octet_stream *, EVP_MD_CTX *, EVP_PKEY *, int16);
+TESLA_ERR octetEVPSign(
+    octet_stream *str, EVP_MD_CTX *ctx, EVP_PKEY *pkey, int16 slen);
 
 #endif

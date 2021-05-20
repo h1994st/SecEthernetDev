@@ -1,9 +1,9 @@
 #include "sample.h"
 
-void printbuf(char *s, int slen){
+void printbuf(char *s, int slen) {
   int i;
-  for(i=0;i<slen;i++){
-    printf("%.2x",s[i]);
+  for (i = 0; i < slen; i++) {
+    printf("%.2x", s[i]);
   }
   printf("\n");
 }
@@ -21,7 +21,7 @@ void handle_error(void)
   switch ( WSAGetLastError() )
   {
     case WSANOTINITIALISED :
-    	printf("Unable to initialise socket.\n");
+        printf("Unable to initialise socket.\n");
       break;
       
     case WSAEAFNOSUPPORT :
