@@ -189,15 +189,20 @@ void *client_get_msg(tesla_client_session *sess, int *mlen) {
   return msg;
 }
 
-//get an inauthentic message
-//NULL if there are no such messages
+// get an inauthentic message
+// NULL if there are no such messages
 void *client_get_bad_msg(tesla_client_session *sess, int *mlen) {
-  tesla_pkt_tag *pkt = llist_get(&(sess->l_bad));
   void *msg;
-  if (pkt == NULL) return NULL;
+
+  tesla_pkt_tag *pkt = llist_get(&(sess->l_bad));
+
+  if (pkt == NULL)
+    return NULL;
+
   msg = pkt->msg;
   *mlen = pkt->mlen;
   pkttag_free(pkt);
+
   return msg;
 }
 
@@ -205,20 +210,22 @@ int client_key_verify(tesla_client_session *sess, int32 d, void *Kd) {
   if (d < 0) d = 0;
 
   if (d >= sess->c) {
-    //a new key, ensure that it is correct via d-c PRF's
+    // a new key, ensure that it is correct via d-c PRF's
     for (; d > sess->c; d--) {
       PRF(
           sess->ctx.Key_t, Kd, sess->ctx.Key_l,
           Kd, sess->ctx.Key_l, &(sess->ctx));
     }
-    return memcmp(Kd, sess->K_c, sess->ctx.Key_l);
 
+    return memcmp(Kd, sess->K_c, sess->ctx.Key_l);
   } else {
-    //old key, very unusual
+    // old key, very unusual
     printf("Old key disclosed\n");
+
     return 1;
   }
 }
+
 TESLA_ERR client_alloc(tesla_client_session *sess) {
   TESLA_ERR rc = TESLA_OK;
   NTP_t time;
@@ -231,8 +238,8 @@ TESLA_ERR client_alloc(tesla_client_session *sess) {
   return TESLA_OK;
 }
 
-#define SANITY_ERR(msg) return ctx_err(&(sess->ctx),msg,\
-            TESLA_ERR_BAD_DATA,__FILE__,__LINE__)
+#define SANITY_ERR(msg) return ctx_err(&(sess->ctx), msg, \
+            TESLA_ERR_BAD_DATA, __FILE__, __LINE__)
 
 TESLA_ERR client_read_sig_tag(
     tesla_client_session *sess, void *buff, int buflen) {
@@ -255,13 +262,13 @@ TESLA_ERR client_read_sig_tag(
     SANITY_ERR("Interval length bad");
 
   rc = hashtable_alloc(&(sess->h_unauth), sess->ctx.d_int * 4);
-  //figure out the mac length
+  // figure out the mac length
   sess->ctx.MAC_l = MAC_LEN(sess->ctx.MAC_t);
   if (!sess->ctx.MAC_l)
     SANITY_ERR("MAC CTAN invalid");
 
 
-  //receive K_0
+  // receive K_0
   if (sess->ctx.Key_l <= 0 || sess->ctx.Key_l > MAX_KEY_LEN)
     SANITY_ERR("Key length too large");
 
@@ -297,13 +304,14 @@ TESLA_ERR client_read_sig_tag(
       SANITY_ERR("Bad signature length");
     octet_rbyte(&str, &bits);
     if (sess->pkey && slen) {
-      EVP_MD_CTX ctx;
-      EVP_MD *type = EVP_md5();
+      EVP_MD_CTX *ctx = EVP_MD_CTX_new(); // -- by h1994st
+      const EVP_MD *type = EVP_md5(); // TODO: should avoid MD5 -- by h1994st
       TESLA_ERR rc = TESLA_OK;
-      EVP_VerifyInit(&ctx, type);
-      EVP_VerifyUpdate(&ctx, octet_buf(&str), octet_tell(&str));
-      EVP_VerifyUpdate(&ctx, &(sess->nonce), sizeof(sess->nonce));
-      rc = octetEVPread(&str, &ctx, sess->pkey, slen);
+      EVP_VerifyInit(ctx, type);
+      EVP_VerifyUpdate(ctx, octet_buf(&str), octet_tell(&str));
+      EVP_VerifyUpdate(ctx, &(sess->nonce), sizeof(sess->nonce));
+      rc = octetEVPread(&str, ctx, sess->pkey, slen);
+      EVP_MD_CTX_free(ctx); // -- by h1994st
       /*BJW 2/22/03
        *SSL is giving me massive issues with
        *the public key private key types, commenting this out for now

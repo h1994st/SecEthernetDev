@@ -54,12 +54,12 @@ void rNTP(octet_stream *str, NTP_t *a);
 #define octet_wint64(str,k) octetwrt(str,(int64 *)k,sizeof(int64))
 #define octet_rint64(str,k) octetrd(str,(int64 *)k,sizeof(int64))
 #else
-inline void octet_wint16(octet_stream *, int16 *);
-inline void octet_rint16(octet_stream *, int16 *);
-inline void octet_wint32(octet_stream *, int32 *);
-inline void octet_rint32(octet_stream *, int32 *);
-inline void octet_wint64(octet_stream *, int64 *);
-inline void octet_rint64(octet_stream *, int64 *);
+void octet_wint16(octet_stream *, int16 *);
+void octet_rint16(octet_stream *, int16 *);
+void octet_wint32(octet_stream *, int32 *);
+void octet_rint32(octet_stream *, int32 *);
+void octet_wint64(octet_stream *, int64 *);
+void octet_rint64(octet_stream *, int64 *);
 #endif
 /* wbyte/rbyte writes or reads a byte to the stream */
 #define octet_wbyte(str, c) octetwrt(str,(char *)c,sizeof(char))

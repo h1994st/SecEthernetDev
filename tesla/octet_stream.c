@@ -4,6 +4,8 @@
 #else
 #include <netinet/in.h>
 #endif
+#include <string.h>
+#include <stdlib.h>
 
 const static int32 ZERO = 0x00000000;
 
@@ -103,23 +105,23 @@ void rNTP(octet_stream *str, NTP_t *a) {
 //nothing to do, macros were defined in tesla.h
 #else
 //have to convert to/from network order
-inline void octet_wint16(octet_stream *str, int16 *k) {
+void octet_wint16(octet_stream *str, int16 *k) {
   int16 val = htons(*k);
   octetwrt(str, &val, sizeof(int16));
 }
-inline void octet_rint16(octet_stream *str, int16 *k) {
+void octet_rint16(octet_stream *str, int16 *k) {
   octetrd(str, k, sizeof(int16));
   *k = ntohs(*k);
 }
-inline void octet_wint32(octet_stream *str, int32 *k) {
+void octet_wint32(octet_stream *str, int32 *k) {
   int32 val = htonl(*k);
   octetwrt(str, &val, sizeof(int32));
 }
-inline void octet_rint32(octet_stream *str, int32 *k) {
+void octet_rint32(octet_stream *str, int32 *k) {
   octetrd(str, k, sizeof(int32));
   *k = ntohl(*k);
 }
-inline void octet_wint64(octet_stream *str, int64 *k) {
+void octet_wint64(octet_stream *str, int64 *k) {
   int32 Upper = *(int32 *) k;
   int32 Lower = *(((int32 *) k) + 1);
   Upper = htonl(Upper);
@@ -127,7 +129,7 @@ inline void octet_wint64(octet_stream *str, int64 *k) {
   octetwrt(str, &Lower, sizeof(int32));
   octetwrt(str, &Upper, sizeof(int32));
 }
-inline void octet_rint64(octet_stream *str, int64 *k) {
+void octet_rint64(octet_stream *str, int64 *k) {
   int32 temp;
   octetrd(str, k, sizeof(int64));
   temp = ntohl(*(int32 *) k);

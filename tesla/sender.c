@@ -98,17 +98,18 @@ TESLA_ERR sender_write_sig_tag(
   octet_wint16(&str, (int16 *) &(ZERO));
   //SSL signature code
   if (sess->pkey) {
-    EVP_MD_CTX ctx;
-    EVP_MD *type = EVP_md5();
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new(); // -- by h1994st
+    const EVP_MD *type = EVP_md5();
     size = EVP_PKEY_size(sess->pkey) + sizeof(int16);
     //signature length written here:
     octet_wint16(&str, &(size));
     //extra informational bits
     octet_wbyte(&str, &(bits));
-    EVP_SignInit(&ctx, type);
-    EVP_SignUpdate(&ctx, octet_buf(&str), octet_tell(&str));
-    EVP_SignUpdate(&ctx, &nonce, sizeof(int64));
-    octetEVPSign(&str, &ctx, sess->pkey, EVP_PKEY_size(sess->pkey));
+    EVP_SignInit(ctx, type);
+    EVP_SignUpdate(ctx, octet_buf(&str), octet_tell(&str));
+    EVP_SignUpdate(ctx, &nonce, sizeof(int64));
+    octetEVPSign(&str, ctx, sess->pkey, EVP_PKEY_size(sess->pkey));
+    EVP_MD_CTX_free(ctx); // -- by h1994st
   } else {
     octet_wint16(&str, (int16 *) &ZERO);
     //extra informational bits
@@ -117,7 +118,7 @@ TESLA_ERR sender_write_sig_tag(
   wpad(&str);
 
   printf(
-      "%i %i\n", octet_tell(&str) - i, OCTET_LEN(
+      "%ld %lu\n", octet_tell(&str) - i, OCTET_LEN(
       NTP_SIZE + 3 * sizeof(int16) + sizeof(int32) + sizeof(char)
           + (((sess)->pkey) ? EVP_PKEY_size((sess)->pkey) + sizeof(int16)
                             : 0)));

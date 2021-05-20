@@ -145,8 +145,8 @@ void ctx_print_err(tesla_ctx *ctx) {
     printf("Tesla trace:\n");
     while (cerr != NULL) {
       printf(
-          "TESLA ERROR %s : %i\n\t%s\nCODE:%i", cerr->err_file, cerr->err_line,
-          cerr->err_string, cerr->err_code);
+          "TESLA ERROR %s : %ld\n\t%s\nCODE: %i", cerr->err_file,
+          cerr->err_line, cerr->err_string, cerr->err_code);
       free(cerr);
       cerr = llist_get(&(ctx->err_stack));
     }
@@ -159,7 +159,7 @@ TESLA_ERR PRF(
     PRF_CTAN type, void *key, int keylen, void *out, int outlen,
     tesla_ctx *ctx) {
   char dummy[32];
-  EVP_MD *md;
+  const EVP_MD *md;
   int len;
   if (sizeof(dummy) < outlen)
     return ctx_err(
@@ -198,7 +198,7 @@ TESLA_ERR PRF(
 
 /*Figures out the mac length based upon the mac type
   0 if the type is invalid */
-inline int16 MAC_LEN(MAC_CTAN type) {
+int16 MAC_LEN(MAC_CTAN type) {
   switch (type) {
     case MAC_MD5_64: return 8;
     case MAC_MD5_96: return 12;
@@ -213,7 +213,7 @@ inline int16 MAC_LEN(MAC_CTAN type) {
 TESLA_ERR MAC(
     MAC_CTAN type, void *msg, int mlen, void *key, int keylen, void *out,
     int outlen, tesla_ctx *ctx) {
-  EVP_MD *md;
+  const EVP_MD *md;
   int len;
   char *mac;
   switch (type) {

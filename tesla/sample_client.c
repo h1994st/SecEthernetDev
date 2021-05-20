@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
   tesla_client_session client;
   TESLA_ERR rc = TESLA_OK;
   EVP_PKEY *pubkey = NULL;
-  FILE *pfile = fopen("pubkey.pem", "r");
+  FILE *pfile;
   int64 rnonce;
   char *data = NULL;
   struct sockaddr_in sa;
@@ -40,6 +40,17 @@ int main(int argc, char **argv) {
     handle_error();
   }
 #endif
+
+  if (argc > 1)
+    pfile = fopen(argv[1], "r");
+  else
+    pfile = fopen("pubkey.pem", "r");
+
+  if (!pfile) {
+    // no such file
+    perror("fopen failed");
+    exit(EXIT_FAILURE);
+  }
 
   //very important
   ERR_load_crypto_strings();

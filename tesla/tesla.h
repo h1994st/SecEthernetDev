@@ -78,7 +78,7 @@ TESLA_ERR PRF(
 TESLA_ERR MAC(
     MAC_CTAN type, void *msg, int msglen, void *key, int keylen, void *out,
     int outlen, tesla_ctx *ctx);
-inline int16 MAC_LEN(MAC_CTAN type);
+int16 MAC_LEN(MAC_CTAN type);
 
 TESLA_ERR ctx_currentInterval(tesla_ctx *ctx, int32 *i, NTP_t *a);
 TESLA_ERR ctx_alloc(

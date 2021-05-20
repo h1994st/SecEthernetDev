@@ -2,6 +2,7 @@
 #include "sender.h"
 #include "client.h"
 #include <stdlib.h>
+#include <unistd.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
@@ -9,7 +10,7 @@
 
 #define TERROR(a) if(a != TESLA_OK){ rc = a; goto error;}
 
-int main(void) {
+int main(int argc, char **argv) {
   char buff[1024];
   int64 rnonce;
   char sig[1024];
@@ -21,8 +22,14 @@ int main(void) {
   NTP_t tint = NTP_fromMillis(1500);
   EVP_PKEY *pkey = NULL;
   EVP_PKEY *pubkey = NULL;
-  FILE *pfile = fopen("privkey.pem", "r");
+  FILE *pfile = NULL;
   hashtable tbl;
+
+  if (argc < 3) {
+    fprintf(stderr, "Not enough arguments\n");
+    exit(EXIT_FAILURE);
+  }
+
   //very important
   ERR_load_crypto_strings();
 
@@ -39,25 +46,39 @@ int main(void) {
   rnonce = rnonce ^ *(int64 *) sig;
 
   X509V3_add_standard_extensions();
-  SSLeay_add_all_algorithms();
+  // SSLeay_add_all_algorithms(); // -- deleted by h1994st
+
+  //set RSA keys
+  pfile = fopen(argv[1], "rb");
+  if (!pfile) {
+    // no such file
+    perror("fopen failed");
+    exit(EXIT_FAILURE);
+  }
+  PEM_read_PrivateKey(pfile, &pkey, NULL, NULL);
+  fclose(pfile);
+
+  pfile = fopen(argv[2], "rb");
+  if (!pfile) {
+    // no such file
+    perror("fopen failed");
+    exit(EXIT_FAILURE);
+  }
+  PEM_read_PUBKEY(pfile, &pubkey, NULL, NULL);
+
+  if (pkey == NULL || pubkey == NULL) goto error;
 
   rc = sender_init(&server, &tint, 4, 2500, rand);
   TERROR(rc);
   sender_start(&server);
   client_alloc(&client);
   client_set_nonce(&(client), rnonce);
-
-  //set RSA keys
-  pkey = PEM_read_PrivateKey(pfile, NULL, NULL, NULL);
-  fclose(pfile);
-  pfile = fopen("pubkey.pem", "r");
-  pubkey = PEM_read_PUBKEY(pfile, NULL, NULL, NULL);
-  if (pkey == NULL || pubkey == NULL) goto error;
   sender_set_pkey(&server, pkey);
   client_set_pkey(&client, pubkey);
 
   printf("Writing nonce\n");
   rc = client_write_nonce(&client, sig, 8);
+  TERROR(rc);
 
   printf("Writing signature tag\n");
   rc = sender_write_sig_tag(&server, sig, sender_sig_tag_size(&server), sig, 8);
