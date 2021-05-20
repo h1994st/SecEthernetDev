@@ -1,0 +1,23 @@
+find_package(OpenSSL REQUIRED)
+message("OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
+message("OpenSSL libs: ${OPENSSL_LIBRARIES}")
+
+set(TESLA_SRCS tesla.c NTP.c client.c sender.c octet_stream.c hashtable.c)
+
+include_directories(${OPENSSL_INCLUDE_DIR})
+
+# tesla library
+add_library(tesla SHARED ${TESLA_SRCS})
+target_link_libraries(tesla ${OPENSSL_LIBRARIES})
+
+# sample_server
+add_executable(sample_server sample_server.c sample.c)
+target_link_libraries(sample_server tesla)
+
+# sample_client
+add_executable(sample_client sample_client.c sample.c)
+target_link_libraries(sample_client tesla)
+
+# tesla_test
+add_executable(tesla_test tesla_test.c)
+target_link_libraries(tesla_test tesla)
