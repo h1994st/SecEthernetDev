@@ -35,16 +35,16 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     struct net_device *slave_dev = slave->dev;
 
     // clone a buffer
-    netdev_info(mitm->dev, "before cloning the sk_buff\n");
+//    netdev_info(mitm->dev, "before cloning the sk_buff\n");
     skb = skb_clone(skbn, GFP_ATOMIC);
-    netdev_info(mitm->dev, "after cloning the sk_buff\n");
+//    netdev_info(mitm->dev, "after cloning the sk_buff\n");
     if (!skb)
         return -ENOMEM;
     proof = proof_hdr(skb);
     skb->dev = to;
     skb->pkt_type = PACKET_OUTGOING;
 
-    netdev_info(mitm->dev, "setup the hardware header\n");
+//    netdev_info(mitm->dev, "setup the hardware header\n");
     eth = skb_push(skb, ETH_HLEN);
     eth->h_proto = htons(ETH_P_MITM_AUTH);
     eth_broadcast_addr(eth->h_dest); // broadcast destination
@@ -60,7 +60,7 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
 
     // calculate new hmac
     tfm = mitm->proof_shash;
-    netdev_info(mitm->dev, "before allocating shash_desc for hmac-sha256: %zu bytes\n", sizeof(struct shash_desc) + crypto_shash_descsize(tfm));
+//    netdev_info(mitm->dev, "before allocating shash_desc for hmac-sha256: %zu bytes\n", sizeof(struct shash_desc) + crypto_shash_descsize(tfm));
     desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
     if (!desc) {
         // error: no memory
@@ -71,11 +71,11 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
     desc->tfm = tfm;
 
 //    netdev_info(mitm->dev, "calculate hmac for the proof packet\n");
-    netdev_info(mitm->dev, "before crypto_shash_digest for hmac-sha256: %u bytes\n", len);
+//    netdev_info(mitm->dev, "before crypto_shash_digest for hmac-sha256: %u bytes\n", len);
     ret = crypto_shash_digest(desc, data, len, proof->proof_hmac);
-    netdev_info(mitm->dev, "after crypto_shash_digest\n");
+//    netdev_info(mitm->dev, "after crypto_shash_digest\n");
     kfree(desc);
-    netdev_info(mitm->dev, "after freeing shash_desc\n");
+//    netdev_info(mitm->dev, "after freeing shash_desc\n");
     if (ret < 0) {
         // error
         netdev_err(mitm->dev, "crypto_shash_digest failed: err %d\n", ret);
@@ -95,7 +95,7 @@ static int mitm_deliver_proof(struct mitm *mitm, struct net_device *to, struct s
 //            skb_mac_header(skb), skb->tail - skb->mac_header, true);
 
     // send packet out
-    netdev_info(mitm->dev, "send the proof packet to (%p)\n", to);
+//    netdev_info(mitm->dev, "send the proof packet to (%p)\n", to);
 	ret = dev_queue_xmit(skb);
 	netdev_info(mitm->dev, "dev_queue_xmit() returns %d\n", ret);
 
@@ -160,9 +160,9 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 //                    KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
 //                    skb_mac_header(skb), skb->tail - skb->mac_header, true);
 
-            netdev_info(mitm->dev, "tail pointer=%px\n", skb_tail_pointer(skb));
-            netdev_info(mitm->dev, "udp payload end=%px, udp len=%hu\n", udp_payload_end, ntohs(udph->len));
-            netdev_info(mitm->dev, "tail data len=%u\n", tail_data_len);
+//            netdev_info(mitm->dev, "tail pointer=%px\n", skb_tail_pointer(skb));
+//            netdev_info(mitm->dev, "udp payload end=%px, udp len=%hu\n", udp_payload_end, ntohs(udph->len));
+//            netdev_info(mitm->dev, "tail data len=%u\n", tail_data_len);
             if (tail_data_len != ARRAY_SIZE(data)) {
                 // no additional data
                 netdev_info(mitm->dev, "normal packet, no appended data\n");
@@ -176,7 +176,7 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
             // calculate and verify MAC
 			/* From `hmac_sha256` at net/bluetooth/amp.c */
 			tfm = mitm->hmac_shash;
-			netdev_info(mitm->dev, "before allocating shash_desc for hmac-sha256: %zu bytes\n", sizeof(struct shash_desc) + crypto_shash_descsize(tfm));
+//			netdev_info(mitm->dev, "before allocating shash_desc for hmac-sha256: %zu bytes\n", sizeof(struct shash_desc) + crypto_shash_descsize(tfm));
             desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
             if (!desc) {
                 // error: no memory
@@ -185,11 +185,11 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
             }
             desc->tfm = tfm;
 
-            netdev_info(mitm->dev, "before crypto_shash_digest for hmac-sha256: %u bytes\n", skb->tail - skb->mac_header);
+//            netdev_info(mitm->dev, "before crypto_shash_digest for hmac-sha256: %u bytes\n", skb->tail - skb->mac_header);
             ret = crypto_shash_digest(desc, skb_mac_header(skb), skb->tail - skb->mac_header, data);
-            netdev_info(mitm->dev, "after crypto_shash_digest\n");
+//            netdev_info(mitm->dev, "after crypto_shash_digest\n");
             kfree(desc);
-            netdev_info(mitm->dev, "after freeing shash_desc\n");
+//            netdev_info(mitm->dev, "after freeing shash_desc\n");
             if (ret < 0) {
                 // error
                 netdev_err(mitm->dev, "crypto_shash_digest failed: err %d\n", ret);
@@ -197,7 +197,7 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
             }
 
             // verify the digest
-            netdev_info(mitm->dev, "before crypto_memneq: 32 bytes\n");
+//            netdev_info(mitm->dev, "before crypto_memneq: 32 bytes\n");
             ret = crypto_memneq(data, skb_tail_pointer(skb), ARRAY_SIZE(data));
             if (ret) {
                 // non-equal
@@ -207,22 +207,22 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
             netdev_info(mitm->dev, "correct MAC\n");
 
             // find the source device according to the MAC address
-            netdev_info(mitm->dev, "before br_fdb_find_port\n");
+//            netdev_info(mitm->dev, "before br_fdb_find_port\n");
 			rtnl_lock();
 			src_dev = br_fdb_find_port(br_dev, eth->h_source, 0);
 			rtnl_unlock();
-			netdev_info(mitm->dev, "after br_fdb_find_port\n");
+//			netdev_info(mitm->dev, "after br_fdb_find_port\n");
 
 			// create `skbn` as a template
 			hlen = LL_RESERVED_SPACE(src_dev);
 			tlen = src_dev->needed_tailroom;
-			netdev_info(mitm->dev, "before alloc_skb: %u bytes\n", plen + hlen + tlen);
+//			netdev_info(mitm->dev, "before alloc_skb: %u bytes\n", plen + hlen + tlen);
 			skbn = alloc_skb(plen + hlen + tlen, GFP_ATOMIC);
             if (!skbn) {
                 netdev_err(mitm->dev, "cannot allocate sk_buff for proof packets\n");
                 return MITM_FORWARD;
             }
-            netdev_info(mitm->dev, "after alloc_skb\n");
+//            netdev_info(mitm->dev, "after alloc_skb\n");
 
 			skb_reserve(skbn, hlen);
             skb_reset_network_header(skbn); // now points to the proof header
@@ -231,7 +231,7 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
 
 			// calculate the hash, fill it into `proof->pkt_hash`
 			tfm = mitm->hash_shash;
-			netdev_info(mitm->dev, "before allocating shash_desc for sha256: %zu bytes\n", sizeof(struct shash_desc) + crypto_shash_descsize(tfm));
+//			netdev_info(mitm->dev, "before allocating shash_desc for sha256: %zu bytes\n", sizeof(struct shash_desc) + crypto_shash_descsize(tfm));
             desc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm), GFP_KERNEL);
             if (!desc) {
                 // error: no memory
@@ -241,11 +241,11 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
             }
             desc->tfm = tfm;
 
-            netdev_info(mitm->dev, "before crypto_shash_digest: %u bytes\n", skb->tail - skb->mac_header);
+//            netdev_info(mitm->dev, "before crypto_shash_digest: %u bytes\n", skb->tail - skb->mac_header);
             ret = crypto_shash_digest(desc, skb_mac_header(skb), skb->tail - skb->mac_header, proof->pkt_hash);
-            netdev_info(mitm->dev, "after crypto_shash_digest\n");
+//            netdev_info(mitm->dev, "after crypto_shash_digest\n");
             kfree(desc);
-            netdev_info(mitm->dev, "after freeing shash_desc\n");
+//            netdev_info(mitm->dev, "after freeing shash_desc\n");
             if (ret < 0) {
                 // error
                 kfree_skb(skbn);
@@ -254,12 +254,12 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
             }
 
 			// iterate over all slave devices of the bridge device
-			netdev_info(mitm->dev, "iterating over all ports to send proof packets\n");
+//			netdev_info(mitm->dev, "iterating over all ports to send proof packets\n");
             netdev_for_each_lower_dev(br_dev, br_port_dev, iter) {
                 if (br_port_dev == src_dev)
                     continue;
 
-                netdev_info(mitm->dev, "other br_port_dev=%p\n", br_port_dev);
+//                netdev_info(mitm->dev, "other br_port_dev=%p\n", br_port_dev);
 
                 // `skbn` will be cloned in the function
                 ret = mitm_deliver_proof(mitm, br_port_dev, skbn,
@@ -269,7 +269,7 @@ enum mitm_handler_result mitm_from_slave(struct mitm *mitm, struct sk_buff *skb)
                     break;
                 }
             }
-            netdev_info(mitm->dev, "after iterating over ports\n");
+//            netdev_info(mitm->dev, "after iterating over ports\n");
 
             // free the original `skbn`
             kfree_skb(skbn);
