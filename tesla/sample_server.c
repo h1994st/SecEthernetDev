@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
     CHECKNEGPE(recv(peerfd, (char *) &nlen, 4, MSG_WAITALL));//read the nlength
     nlen = ntohl(nlen);
     BUFBIG(nlen);
-    printf("Server: Receiving nonce %ld\n", nlen);
+    printf("Server: Receiving nonce %d\n", nlen);
     CHECKNEGPE(recv(peerfd, replybuffer, nlen, MSG_WAITALL));
     //we've got the nonce
     printf("Server: Nonce received\n");

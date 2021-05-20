@@ -145,7 +145,7 @@ void ctx_print_err(tesla_ctx *ctx) {
     printf("Tesla trace:\n");
     while (cerr != NULL) {
       printf(
-          "TESLA ERROR %s : %ld\n\t%s\nCODE: %i", cerr->err_file,
+          "TESLA ERROR %s : %d\n\t%s\nCODE: %i", cerr->err_file,
           cerr->err_line, cerr->err_string, cerr->err_code);
       free(cerr);
       cerr = llist_get(&(ctx->err_stack));

@@ -118,7 +118,7 @@ TESLA_ERR sender_write_sig_tag(
   wpad(&str);
 
   printf(
-      "%ld %lu\n", octet_tell(&str) - i, OCTET_LEN(
+      "%d %lu\n", octet_tell(&str) - i, OCTET_LEN(
       NTP_SIZE + 3 * sizeof(int16) + sizeof(int32) + sizeof(char)
           + (((sess)->pkey) ? EVP_PKEY_size((sess)->pkey) + sizeof(int16)
                             : 0)));
