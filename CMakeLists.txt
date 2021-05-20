@@ -11,8 +11,15 @@ endif ()
 # C++ language standard
 set(CMAKE_CXX_STANDARD 14)
 
+find_package(OpenSSL REQUIRED)
+message("OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
+message("OpenSSL libs: ${OPENSSL_LIBRARIES}")
+
 # CAN over UDP
 add_subdirectory(can_udp)
 
 # TESLA
 add_subdirectory(tesla)
+
+# TESLA: CAN over UDP
+add_subdirectory(tesla_can_udp)

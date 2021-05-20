@@ -1,7 +1,3 @@
-find_package(OpenSSL REQUIRED)
-message("OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
-message("OpenSSL libs: ${OPENSSL_LIBRARIES}")
-
 set(TESLA_SRCS tesla.c NTP.c client.c sender.c octet_stream.c hashtable.c)
 
 include_directories(${OPENSSL_INCLUDE_DIR})
