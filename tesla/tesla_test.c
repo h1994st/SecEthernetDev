@@ -1,14 +1,18 @@
-#include "tesla.h"
-#include "sender.h"
 #include "client.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <openssl/ssl.h>
+#include "sender.h"
+#include "tesla.h"
 #include <openssl/err.h>
 #include <openssl/pem.h>
+#include <openssl/ssl.h>
 #include <openssl/x509v3.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-#define TERROR(a) if(a != TESLA_OK){ rc = a; goto error;}
+#define TERROR(a)      \
+  if (a != TESLA_OK) { \
+    rc = a;            \
+    goto error;        \
+  }
 
 int main(int argc, char **argv) {
   char buff[1024];
@@ -65,6 +69,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   PEM_read_PUBKEY(pfile, &pubkey, NULL, NULL);
+  fclose(pfile);
 
   if (pkey == NULL || pubkey == NULL) goto error;
 
@@ -138,7 +143,8 @@ int main(int argc, char **argv) {
     int mlen = 0;
     char *msg = client_get_msg(&client, &mlen);
     if (msg) printf("The message says :\n%s\n", msg);
-    else printf("There were no authentic messages\n");
+    else
+      printf("There were no authentic messages\n");
     //tesla hands back dynamically allocated data
     free(msg);
   }
@@ -147,7 +153,8 @@ int main(int argc, char **argv) {
     int mlen = 0;
     char *msg = client_get_bad_msg(&client, &mlen);
     if (msg) printf("The message says :\n%s\n", msg);
-    else printf("There were no inauthentic messages\n");
+    else
+      printf("There were no inauthentic messages\n");
     free(msg);
   }
 

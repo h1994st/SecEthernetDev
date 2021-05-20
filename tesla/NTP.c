@@ -5,6 +5,7 @@
 #include "NTP.h"
 #include <string.h>
 #include <sys/time.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 const uint32 FRAC_MAX = 1000000;
