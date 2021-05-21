@@ -21,10 +21,10 @@
 #include <sender.h>
 #include <tesla.h>
 
-#define T_INT 1000
-#define D_INT 3
-
-#define MAXLINE 1024
+//#define T_INT 1000
+//#define D_INT 3
+#define T_INT 10
+#define D_INT 2
 
 #define NANOSECONDS_PER_SECOND 1000000000L
 
@@ -153,7 +153,6 @@ int main(int argc, char *argv[]) {
     goto out;
   }
   sender_set_pkey(&sender, pkey);
-  sender_start(&sender);
 
   // Creating socket for incoming connections
   memset(&myaddr, 0, sizeof(myaddr));
@@ -190,6 +189,7 @@ int main(int argc, char *argv[]) {
       "connection from %u.%u.%u.%u:%u\n",
       IP_ADDR_FORMAT(peerip), ntohs(peeraddr.sin_port));
 
+  sender_start(&sender);
   // TESLA: nonce
   {
     if (recv(peerfd, &nlen, sizeof(nlen), MSG_WAITALL) < 0) {
@@ -328,19 +328,6 @@ int main(int argc, char *argv[]) {
       p += 16;
       can = (struct can_frame *) p;
 
-      len = sizeof(struct can_frame) - CAN_MAX_DLEN + can->can_dlc;
-      assert(len + sizeof(con) <= 32); // hard coded
-      memcpy(data, p, len);
-      memcpy(data + len, &con, sizeof(con)); // attach a counter
-      rc = sender_write_auth_tag(
-          &sender, data, len + sizeof(con), data + len + sizeof(con), dlen);
-      if (rc != TESLA_OK) {
-        fprintf(stderr, "sender_write_auth_tag failed");
-        ret = EXIT_FAILURE;
-        pcap_close(handle);
-        goto out;
-      }
-
       if (interval != -1) {
         // Use constant packet rate
         deadline.tv_sec += interval / 1000L;
@@ -369,6 +356,19 @@ int main(int argc, char *argv[]) {
           pcap_close(handle);
           goto out;
         }
+      }
+
+      len = sizeof(struct can_frame) - CAN_MAX_DLEN + can->can_dlc;
+      assert(len + sizeof(con) <= 32); // hard coded
+      memcpy(data, p, len);
+      memcpy(data + len, &con, sizeof(con)); // attach a counter
+      rc = sender_write_auth_tag(
+          &sender, data, len + sizeof(con), data + len + sizeof(con), dlen);
+      if (rc != TESLA_OK) {
+        fprintf(stderr, "sender_write_auth_tag failed");
+        ret = EXIT_FAILURE;
+        pcap_close(handle);
+        goto out;
       }
 
       // record the sending time

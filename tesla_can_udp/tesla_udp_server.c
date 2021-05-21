@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <signal.h>
 #include <time.h>
 
@@ -97,7 +98,8 @@ int main(int argc, char *argv[]) {
   memset(&cliaddr, 0, sizeof(cliaddr));
   cliaddr.sin_family = AF_INET;
   cliaddr.sin_port = htons(SENDER_PORT);
-  servaddr.sin_addr.s_addr = INADDR_LOOPBACK; // TODO: hard coded IP
+//  cliaddr.sin_addr.s_addr = INADDR_LOOPBACK;
+  cliaddr.sin_addr.s_addr = inet_addr("172.50.1.2"); // TODO: use argument
   if (connect(peerfd, (struct sockaddr *) &cliaddr, sizeof(cliaddr)) < 0) {
     perror("socket connect failed");
     ret = EXIT_FAILURE;
