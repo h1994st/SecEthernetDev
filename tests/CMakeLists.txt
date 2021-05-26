@@ -31,6 +31,7 @@ add_subdirectory(
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${WOLFSSL_INCLUDE_DIR})
 
+# wolfSSL Test
 add_executable(test_wolfssl test_wolfssl.cpp)
 target_link_libraries(test_wolfssl
     PRIVATE gtest_main
@@ -38,4 +39,16 @@ target_link_libraries(test_wolfssl
 add_test(
     NAME test_wolfssl
     COMMAND test_wolfssl
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+# TESLA Test
+add_executable(test_tesla test_tesla.cpp)
+target_include_directories(test_tesla
+    PRIVATE ${CMAKE_SOURCE_DIR}/tesla)
+target_link_libraries(test_tesla
+    PRIVATE gtest_main
+    PRIVATE tesla)
+add_test(
+    NAME test_tesla
+    COMMAND test_tesla
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

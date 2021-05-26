@@ -7,6 +7,10 @@
 
 #include "tesla.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
   tesla_ctx ctx;
   tesla_keychain keyring;
@@ -53,5 +57,9 @@ TESLA_ERR sender_write_sig_tag(
 #define sender_auth_tag_size(sess) ctx_auth_tag_size(&((sess)->ctx))
 //Starts the Tesla sender session
 void sender_start(tesla_sender_session *sess);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

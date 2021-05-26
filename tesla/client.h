@@ -1,6 +1,10 @@
 #ifndef _TESLA_CLIENT_H
 #define _TESLA_CLIENT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
 
@@ -42,5 +46,9 @@ int client_key_verify(tesla_client_session *sess, int32 d, void *Kd);
 #define client_auth_tag_size(sess) ctx_auth_tag_size(&(sess)->ctx)
 #define client_auth_tag_alloc(sess, mtag) authtag_alloc(mtag, &((sess)->ctx))
 #define client_new() malloc(sizeof(tesla_client_session))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

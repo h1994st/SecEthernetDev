@@ -5,6 +5,10 @@
 #include "defs.h"
 #include "hashtable.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
   HMAC_MD5,
   HMAC_SHA256,
@@ -114,5 +118,9 @@ TESLA_ERR pkttag_alloc(
     tesla_pkt_tag *, tesla_ctx *ctx, void *MAC,
     void *msg, int32 mlen);
 void printbuf(char *, int);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

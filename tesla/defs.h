@@ -2,13 +2,19 @@
 #ifndef TESLA_DEFS_H
 #define TESLA_DEFS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 typedef int32_t int32;
 typedef uint32_t uint32;
 typedef int16_t int16;
 typedef int64_t int64;
+#ifndef __cplusplus
 typedef char bool;
+#endif
 
 #define FALSE 0
 #define TRUE 1
@@ -30,5 +36,9 @@ typedef enum {
   TESLA_ERR_BAD_DATA,
   TESLA_ERR_NO_KEYS
 } TESLA_ERR;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -5,6 +5,10 @@
 #define TESLA_NTP_H
 #include "defs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
   uint32 seconds;
   uint32 fraction;
@@ -24,5 +28,9 @@ NTP_t NTP_fromMillis(int32 millis);//NTP time from milliseconds
 void NTP_write(void *buf, NTP_t *a);
 void NTP_read(void *buf, NTP_t *a);
 #define NTP_gt(a, b) (((a)->seconds > (b)->seconds) || ((a)->seconds == (b)->seconds && (a)->fraction > (b)->fraction))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

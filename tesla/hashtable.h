@@ -1,6 +1,11 @@
-#include "defs.h"
 #ifndef TESLA_HASHNODE_H
 #define TESLA_HASHNODE_H
+
+#include "defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct HASHNODE {
   struct HASHNODE *next;
@@ -39,5 +44,9 @@ TESLA_ERR llist_add(llist *, void *);
   hashnode_add((l1)->list, (l2)->list); \
   (l2)->list = NULL;
 void *llist_get(llist *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

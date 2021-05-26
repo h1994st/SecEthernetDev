@@ -13,6 +13,10 @@
 #include "NTP.h"
 #include "defs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
   int32 pos;
   void *cbuff;
@@ -74,4 +78,10 @@ TESLA_ERR octetEVPread(octet_stream *, EVP_MD_CTX *, EVP_PKEY *, int16);
 TESLA_ERR octetEVPSign(
     octet_stream *str, EVP_MD_CTX *ctx, EVP_PKEY *pkey, int16 slen);
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif
+
+

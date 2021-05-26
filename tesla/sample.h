@@ -1,4 +1,11 @@
+#ifndef _TESLA_SAMPLE_H
+#define _TESLA_SAMPLE_H
+
 #include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define HOSTNAME "localhost"
 #define SERVERPORT 2345
@@ -22,4 +29,10 @@ void handle_error(void);
     printf(" Error %s: %i", __FILE__, __LINE__); \
     exit(-1);                                    \
   }
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

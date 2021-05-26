@@ -13,7 +13,3 @@ target_link_libraries(sample_server tesla)
 # sample_client
 add_executable(sample_client sample_client.c sample.c)
 target_link_libraries(sample_client tesla)
-
-# tesla_test
-add_executable(tesla_test tesla_test.c)
-target_link_libraries(tesla_test tesla)

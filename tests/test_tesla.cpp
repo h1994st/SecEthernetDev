@@ -1,3 +1,5 @@
+#include "gtest/gtest.h"
+
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
 
@@ -11,16 +13,14 @@
 #include "client.h"
 #include "sender.h"
 #include "tesla.h"
-#include <stdlib.h>
-#include <unistd.h>
+#include <cstdint>
+#include <cstdlib>
 
-#define TERROR(a)      \
-  if (a != TESLA_OK) { \
-    rc = a;            \
-    goto error;        \
-  }
 
-int main(int argc, char **argv) {
+class TESLATest : public ::testing::Test {
+};
+
+TEST_F(TESLATest, TestTESLA) {
   char buff[1024];
   int64 rnonce;
   char sig[1024];
@@ -30,19 +30,12 @@ int main(int argc, char **argv) {
   tesla_auth_tag mtag;
   tesla_client_session client;
   NTP_t tint = NTP_fromMillis(1500);
-  EVP_PKEY *pkey = NULL;
-  EVP_PKEY *pubkey = NULL;
-  WOLFSSL_BIO *bio = NULL;
+  EVP_PKEY *pkey = nullptr;
+  EVP_PKEY *pubkey = nullptr;
+  WOLFSSL_BIO *bio = nullptr;
   hashtable tbl;
 
-  if (argc < 3) {
-    fprintf(stderr, "Not enough arguments\n");
-    exit(EXIT_FAILURE);
-  }
-
-  //very important
   ERR_load_crypto_strings();
-
   OpenSSL_add_all_algorithms();
   OpenSSL_add_all_ciphers();
   OpenSSL_add_all_digests();
@@ -50,34 +43,27 @@ int main(int argc, char **argv) {
   hashtable_alloc(&tbl, 1000);
 
   //generate a random nonce
-  *(((int32 *) &rnonce) + 1) = (int32) time(NULL);
+  *(((int32 *) &rnonce) + 1) = (int32) time(nullptr);
   rnonce += clock();
   //just to make this hard predict, xor with something weird from memory
   rnonce = rnonce ^ *(int64 *) sig;
 
   //set RSA keys
-  bio = wolfSSL_BIO_new_file(argv[1], "rb");
-  if (!bio) {
-    // no such file
-    perror("wolfSSL_BIO_new_file failed");
-    exit(EXIT_FAILURE);
-  }
-  pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+  bio = wolfSSL_BIO_new_file("data/privkey.pem", "rb");
+  EXPECT_NE(bio, nullptr);
+  pkey = PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
   wolfSSL_BIO_free(bio);
 
-  bio = wolfSSL_BIO_new_file(argv[2], "rb");
-  if (!bio) {
-    // no such file
-    perror("wolfSSL_BIO_new_file failed");
-    exit(EXIT_FAILURE);
-  }
-  pubkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
+  bio = wolfSSL_BIO_new_file("data/pubkey.pem", "rb");
+  EXPECT_NE(bio, nullptr);
+  pubkey = PEM_read_bio_PUBKEY(bio, nullptr, nullptr, nullptr);
   wolfSSL_BIO_free(bio);
 
-  if (pkey == NULL || pubkey == NULL) goto error;
+  EXPECT_NE(pkey, nullptr);
+  EXPECT_NE(pubkey, nullptr);
 
-  rc = sender_init(&server, &tint, 4, 2500, rand);
-  TERROR(rc);
+  rc = sender_init(&server, &tint, 4, 2500, (void *)rand);
+  EXPECT_EQ(rc, TESLA_OK);
   sender_start(&server);
   client_alloc(&client);
   client_set_nonce(&(client), rnonce);
@@ -86,65 +72,65 @@ int main(int argc, char **argv) {
 
   printf("Writing nonce\n");
   rc = client_write_nonce(&client, sig, 8);
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   printf("Writing signature tag\n");
   rc = sender_write_sig_tag(&server, sig, sender_sig_tag_size(&server), sig, 8);
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   sleep(1);
   printf("Reading signature tag\n");
   rc = client_read_sig_tag(&client, sig, sender_sig_tag_size(&server));
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   printf("Writing authentication tag\n");
   rc = sender_write_auth_tag(&server, &msg, sizeof(msg), buff, 64);
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   rc = authtag_alloc(&mtag, &(server.ctx));
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   printf("Reading authentication tag\n");
   rc = client_read_auth_tag(&mtag, &client, buff, 64);
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   printf("Buffering authentication tag\n");
   rc = client_buffer(&client, &mtag, &msg, sizeof(msg));
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   //let's mess with Tesla
   printf("Buffering a tampered msg\n");
   msg[0]++;
   rc = client_buffer(&client, &mtag, &msg, sizeof(msg));
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   printf("Authenticating tags\n");
   rc = client_authenticate(&client, &mtag);
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   printf("Sleeping again\n");
   sleep(6);
 
   printf("Writing authentication tag\n");
   rc = sender_write_auth_tag(&server, &msg, sizeof(msg), buff, 64);
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   printf("Reading authentication tag\n");
   rc = client_read_auth_tag(&mtag, &client, buff, 64);
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   printf("Buffering authentication tag\n");
   //rc=client_buffer(&client,&mtag,&msg,sizeof(msg));
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   printf("Authenticating old packets based upon new data\n");
   rc = client_authenticate(&client, &mtag);
-  TERROR(rc);
+  EXPECT_EQ(rc, TESLA_OK);
 
   printf("Getting an authentic message\n");
   {
     int mlen = 0;
-    char *msg = client_get_msg(&client, &mlen);
+    char *msg = static_cast<char *>(client_get_msg(&client, &mlen));
     if (msg) printf("The message says :\n%s\n", msg);
     else
       printf("There were no authentic messages\n");
@@ -154,7 +140,7 @@ int main(int argc, char **argv) {
   printf("Getting an inauthentic message\n");
   {
     int mlen = 0;
-    char *msg = client_get_bad_msg(&client, &mlen);
+    char *msg = static_cast<char *>(client_get_bad_msg(&client, &mlen));
     if (msg) printf("The message says :\n%s\n", msg);
     else
       printf("There were no inauthentic messages\n");
@@ -163,11 +149,10 @@ int main(int argc, char **argv) {
 
   printf("All tests successful!\n");
 
-  return 0;
+  return;
+}
 
-error:
-  ctx_print_err(&(server.ctx));
-  ctx_print_err(&(client.ctx));
-  printf("Last SSL error,%s\n", ERR_error_string(ERR_get_error(), NULL));
-  return -1;
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }
