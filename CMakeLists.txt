@@ -8,12 +8,16 @@ if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
     message(FATAL_ERROR "In-source builds are not allowed.")
 endif ()
 
+# CMake modules
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 # C++ language standard
 set(CMAKE_CXX_STANDARD 14)
 
-find_package(OpenSSL REQUIRED)
-message("OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
-message("OpenSSL libs: ${OPENSSL_LIBRARIES}")
+# WolfSSL
+find_package(WolfSSL REQUIRED)
+message("WolfSSL include: ${WOLFSSL_INCLUDE_DIR}")
+message("WolfSSL libs: ${WOLFSSL_LIBRARY}")
 
 # CAN over UDP
 add_subdirectory(can_udp)

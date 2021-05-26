@@ -1,10 +1,10 @@
 set(TESLA_SRCS tesla.c NTP.c client.c sender.c octet_stream.c hashtable.c)
 
-include_directories(${OPENSSL_INCLUDE_DIR})
+include_directories(${WOLFSSL_INCLUDE_DIR})
 
 # tesla library
 add_library(tesla SHARED ${TESLA_SRCS})
-target_link_libraries(tesla ${OPENSSL_LIBRARIES})
+target_link_libraries(tesla ${WOLFSSL_LIBRARY})
 
 # sample_server
 add_executable(sample_server sample_server.c sample.c)
