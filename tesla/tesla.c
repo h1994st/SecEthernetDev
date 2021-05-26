@@ -178,29 +178,32 @@ TESLA_ERR PRF(
     case HMAC_MD5:
       //EVP_md5 returns a constant structure, no need to free it
       md = EVP_md5();
-
-      // Check that MD returns enough bytes for keylength
-
-      if (EVP_MD_size(md) < outlen)
-        return ctx_err(
-            ctx, "MD5 digest cannot provide enough data",
-            TESLA_ERR_DATA_UNAVAILABLE, __FILE__, __LINE__);
-
-      assert(sizeof(dummy) > EVP_MD_size(md));
-
-      HMAC(md, key, keylen, (void *) &ZERO, sizeof(int), dummy, &len);
-      if (len < outlen)
-        return ctx_err(
-            ctx, "MD5 digest did not provide enough data",
-            TESLA_ERR_DATA_UNAVAILABLE, __FILE__, __LINE__);
-
-      memcpy(out, dummy, outlen);
+      break;
+    case HMAC_SHA256:
+      md = EVP_sha256();
       break;
     default:
       return ctx_err(
           ctx, "Unknown PRF CTAN",
           TESLA_ERR_CTAN_UNKNOWN, __FILE__, __LINE__);
   }
+
+  // Check that MD returns enough bytes for keylength
+  if (EVP_MD_size(md) < outlen)
+    return ctx_err(
+        ctx, "Selected digest cannot provide enough data",
+        TESLA_ERR_DATA_UNAVAILABLE, __FILE__, __LINE__);
+
+  assert(sizeof(dummy) >= EVP_MD_size(md));
+
+  HMAC(md, key, keylen, (void *) &ZERO, sizeof(int), dummy, &len);
+  if (len < outlen)
+    return ctx_err(
+        ctx, "Selected digest did not provide enough data",
+        TESLA_ERR_DATA_UNAVAILABLE, __FILE__, __LINE__);
+
+  memcpy(out, dummy, outlen);
+
   return TESLA_OK;
 }
 
@@ -211,6 +214,7 @@ int16 MAC_LEN(MAC_CTAN type) {
     case MAC_MD5_64: return 8;
     case MAC_MD5_96: return 12;
     case MAC_MD5_128: return 16;
+    case MAC_SHA256: return 32;
     default: return 0;
   }
 }
@@ -223,34 +227,40 @@ TESLA_ERR MAC(
     int outlen, tesla_ctx *ctx) {
   const EVP_MD *md;
   int len;
-  char mac[32]; // FIXME: fixed value here
+  char mac[32];// FIXME: fixed value here
   switch (type) {
     case MAC_MD5_64:
     case MAC_MD5_96:
     case MAC_MD5_128:
       //EVP_md5 returns a constant structure, no need to free it
       md = EVP_md5();
-
-      // Check that MD returns enough bytes for keylength
-      if (EVP_MD_size(md) < outlen)
-        return ctx_err(
-            ctx, "MD5 does not provide enough data for MAC",
-            TESLA_ERR_DATA_UNAVAILABLE, __FILE__, __LINE__);
-
-      //WARNING: mac is a static buffer within openssl
-      HMAC(md, key, keylen, msg, mlen, mac, &len);
-      if (len < outlen)
-        return ctx_err(
-            ctx, "MD5 did not provide enough data for MAC",
-            TESLA_ERR_DATA_UNAVAILABLE, __FILE__, __LINE__);
-
-      memcpy(out, mac, outlen);
+      break;
+    case MAC_SHA256:
+      md = EVP_sha256();
       break;
     default:
       return ctx_err(
           ctx, "Unknown MAC CTAN",
           TESLA_ERR_CTAN_UNKNOWN, __FILE__, __LINE__);
   }
+
+  // Check that MD returns enough bytes for keylength
+  if (EVP_MD_size(md) < outlen)
+    return ctx_err(
+        ctx, "Selected algorithm does not provide enough data for MAC",
+        TESLA_ERR_DATA_UNAVAILABLE, __FILE__, __LINE__);
+
+  assert(sizeof(mac) >= EVP_MD_size(md));
+
+  //WARNING: mac is a static buffer within openssl
+  HMAC(md, key, keylen, msg, mlen, mac, &len);
+  if (len < outlen)
+    return ctx_err(
+        ctx, "Selected algorithm did not provide enough data for MAC",
+        TESLA_ERR_DATA_UNAVAILABLE, __FILE__, __LINE__);
+
+  memcpy(out, mac, outlen);
+
   return TESLA_OK;
 }
 

@@ -6,19 +6,21 @@
 #include "hashtable.h"
 
 typedef enum {
-  HMAC_MD5
+  HMAC_MD5,
+  HMAC_SHA256,
 } PRF_CTAN;
 
-#define DEFAULT_PRF HMAC_MD5
+#define DEFAULT_PRF HMAC_SHA256
 #define DEFAULT_KEYL 12
 
 typedef enum {
   MAC_MD5_64,
   MAC_MD5_96,
-  MAC_MD5_128
+  MAC_MD5_128,
+  MAC_SHA256,
 } MAC_CTAN;
 
-#define DEFAULT_MAC MAC_MD5_96
+#define DEFAULT_MAC MAC_SHA256
 #define MAX_KEY_LEN 32
 #define MAX_DINT 128
 
