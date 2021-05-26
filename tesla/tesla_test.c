@@ -1,11 +1,12 @@
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/ssl.h>
+
 #include <wolfssl/openssl/bio.h>
 #include <wolfssl/openssl/err.h>
 #include <wolfssl/openssl/pem.h>
 #include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/x509v3.h>
+#include <wolfssl/ssl.h>
 
 #include "client.h"
 #include "sender.h"
@@ -31,7 +32,7 @@ int main(int argc, char **argv) {
   NTP_t tint = NTP_fromMillis(1500);
   EVP_PKEY *pkey = NULL;
   EVP_PKEY *pubkey = NULL;
-  FILE *pfile = NULL;
+  WOLFSSL_BIO *bio = NULL;
   hashtable tbl;
 
   if (argc < 3) {
@@ -55,23 +56,23 @@ int main(int argc, char **argv) {
   rnonce = rnonce ^ *(int64 *) sig;
 
   //set RSA keys
-  pfile = fopen(argv[1], "rb");
-  if (!pfile) {
+  bio = wolfSSL_BIO_new_file(argv[1], "rb");
+  if (!bio) {
     // no such file
-    perror("fopen failed");
+    perror("wolfSSL_BIO_new_file failed");
     exit(EXIT_FAILURE);
   }
-  pkey = PEM_read_PrivateKey(pfile, NULL, NULL, NULL);
-  fclose(pfile);
+  pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+  wolfSSL_BIO_free(bio);
 
-  pfile = fopen(argv[2], "rb");
-  if (!pfile) {
+  bio = wolfSSL_BIO_new_file(argv[2], "rb");
+  if (!bio) {
     // no such file
-    perror("fopen failed");
+    perror("wolfSSL_BIO_new_file failed");
     exit(EXIT_FAILURE);
   }
-  pubkey = PEM_read_PUBKEY(pfile, NULL, NULL, NULL);
-  fclose(pfile);
+  pubkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
+  wolfSSL_BIO_free(bio);
 
   if (pkey == NULL || pubkey == NULL) goto error;
 
@@ -161,6 +162,8 @@ int main(int argc, char **argv) {
   }
 
   printf("All tests successful!\n");
+
+  return 0;
 
 error:
   ctx_print_err(&(server.ctx));

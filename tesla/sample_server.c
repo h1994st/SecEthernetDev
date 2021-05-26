@@ -1,32 +1,38 @@
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/openssl/ssl.h>
+
 #include <wolfssl/openssl/err.h>
 #include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/x509v3.h>
 
-#include "tesla.h"
-#include "sender.h"
 #include "sample.h"
-#include <stdlib.h>
+#include "sender.h"
+#include "tesla.h"
 #include <stdio.h>
+#include <stdlib.h>
 #ifdef WIN32
 #include <windows.h>
 #include <winsock.h>
 #else
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #endif
-#include <unistd.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define T_INT 1000
 #define D_INT 3
-#define TERROR(rc) if(rc!=TESLA_OK) goto error
-#define ERR(msg) {printf(msg); goto error;}
+#define TERROR(rc) \
+  if (rc != TESLA_OK) goto error
+#define ERR(msg) \
+  {              \
+    printf(msg); \
+    goto error;  \
+  }
 
 int main(int argc, char **argv) {
   //sender object
@@ -48,12 +54,16 @@ int main(int argc, char **argv) {
   int32 dlen = 0;
   int32 nlen = 0;
   int32 client_ip;
-#define BUFBIG(x) if(x>1024){printf("Too long!\n");exit(-1);}
+#define BUFBIG(x)          \
+  if (x > 1024) {          \
+    printf("Too long!\n"); \
+    exit(-1);              \
+  }
   /*Set up the sockets if needed */
 #ifdef WIN32
-  WORD wVersionRequested = MAKEWORD(1,1);
-  WSADATA wsaData;  
-  if ( WSAStartup( wVersionRequested, &wsaData ) != 0 )
+  WORD wVersionRequested = MAKEWORD(1, 1);
+  WSADATA wsaData;
+  if (WSAStartup(wVersionRequested, &wsaData) != 0)
     handle_error();
 #endif
 

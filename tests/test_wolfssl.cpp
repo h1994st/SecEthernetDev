@@ -4,8 +4,9 @@
 
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/ssl.h>
+
 #include <wolfssl/openssl/bio.h>
+#include <wolfssl/ssl.h>
 
 class WolfSSLTest : public ::testing::Test {
   void SetUp() override {}

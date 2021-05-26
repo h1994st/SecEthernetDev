@@ -1,8 +1,9 @@
 #include "hashtable.h"
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
-#define RET_NULL(a) if(a == NULL) return TESLA_ERR_NO_MEMORY
+#define RET_NULL(a) \
+  if (a == NULL) return TESLA_ERR_NO_MEMORY
 
 /*int main(void){
   hashtable tbl;
@@ -111,7 +112,8 @@ bool hashtable_DELETE(hashtable *tbl, int32 elm, bool fr) {
   if (curr != NULL && curr->elem == elm) {
     tbl->table[pos] = curr->next;
     if (fr) hashnode_free(curr);
-    else free(curr);
+    else
+      free(curr);
     return TRUE;
   }
 
@@ -121,7 +123,8 @@ bool hashtable_DELETE(hashtable *tbl, int32 elm, bool fr) {
     if (curr->elem == elm) {
       prev->next = curr->next;
       if (fr) hashnode_free(curr);
-      else free(curr);
+      else
+        free(curr);
       return TRUE;
     }
   }

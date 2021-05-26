@@ -4,8 +4,8 @@
 #else
 #include <netinet/in.h>
 #endif
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 const static int32 ZERO = 0x00000000;
 

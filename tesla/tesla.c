@@ -1,16 +1,21 @@
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
+
 #include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/hmac.h>
 
 //#include "merkle/merkle_tree.h"
 //#include "algorithms/algorithms.h"
-#include <stdlib.h>
-#include <string.h>
 #include "tesla.h"
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
-#define TERROR(a) if(a != TESLA_OK){ rc = a; goto error;}
+#define TERROR(a)      \
+  if (a != TESLA_OK) { \
+    rc = a;            \
+    goto error;        \
+  }
 
 const int32 ZERO = 0x00000000;
 
@@ -41,7 +46,7 @@ TESLA_ERR keychain_alloc(
   TESLA_ERR rc;
   assert(keys > 0 && bufsize > 0 && keylen > 0 && keys >= bufsize);
 
-  kring->index = -1; //first buffer will be filled on first request to copyKey
+  kring->index = -1;//first buffer will be filled on first request to copyKey
   kring->keys_len = keys / bufsize + 1;
   kring->buf_size = bufsize;
 
@@ -56,7 +61,7 @@ TESLA_ERR keychain_alloc(
   memcpy(ikey, mkey, keylen);
   memcpy(ckey, mkey, keylen);
 
-  for (; k / bufsize > 0; k--) { //while we're not in the first buffer
+  for (; k / bufsize > 0; k--) {//while we're not in the first buffer
     rc = PRF(key_t, ckey, keylen, ckey, keylen, NULL);
     TERROR(rc);
 
@@ -148,7 +153,7 @@ void ctx_print_err(tesla_ctx *ctx) {
     printf("Tesla trace:\n");
     while (cerr != NULL) {
       printf(
-          "TESLA ERROR %s : %d\n\t%s\nCODE: %i", cerr->err_file,
+          "TESLA ERROR %s : %d\n\t%s\nCODE: %i\n", cerr->err_file,
           cerr->err_line, cerr->err_string, cerr->err_code);
       free(cerr);
       cerr = llist_get(&(ctx->err_stack));
@@ -218,7 +223,7 @@ TESLA_ERR MAC(
     int outlen, tesla_ctx *ctx) {
   const EVP_MD *md;
   int len;
-  char *mac;
+  char mac[32]; // FIXME: fixed value here
   switch (type) {
     case MAC_MD5_64:
     case MAC_MD5_96:
@@ -233,7 +238,7 @@ TESLA_ERR MAC(
             TESLA_ERR_DATA_UNAVAILABLE, __FILE__, __LINE__);
 
       //WARNING: mac is a static buffer within openssl
-      mac = HMAC(md, key, keylen, msg, mlen, NULL, &len);
+      HMAC(md, key, keylen, msg, mlen, mac, &len);
       if (len < outlen)
         return ctx_err(
             ctx, "MD5 did not provide enough data for MAC",

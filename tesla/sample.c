@@ -17,24 +17,24 @@ void handle_error(void)
    * Errors are handled by calling the WSAGetLastError routine which
    * will return the last error as one of the following. 
    */
-  
+
   switch ( WSAGetLastError() )
   {
     case WSANOTINITIALISED :
         printf("Unable to initialise socket.\n");
       break;
-      
+
     case WSAEAFNOSUPPORT :
       printf("The specified address family is not supported.\n");
       break;
-      
+
     case WSAEADDRNOTAVAIL	:
       printf("Specified address is not available from the local machine.\n");
       break;
 
     case WSAECONNREFUSED :
       printf("The attempt to connect was forcefully rejected.\n");
-      break;  
+      break;
 
     case WSAEDESTADDRREQ	:
       printf("address destination address is required.\n");
@@ -51,7 +51,7 @@ void handle_error(void)
     case WSAEISCONN :
       printf("The socket is already connected.\n");
       break;
-      
+
     case WSAEADDRINUSE :
       printf("The specified address is already in use.\n");
       break;
@@ -91,7 +91,7 @@ void handle_error(void)
     case WSAENETDOWN :
       printf("Network subsystem failure.\n");
       break;
-      
+
     case WSAHOST_NOT_FOUND :
       printf("Authoritative Answer Host not found.\n");
       break;
@@ -115,11 +115,11 @@ void handle_error(void)
     case WSAEINTR	:
       printf("The (blocking) call was canceled via WSACancelBlockingCall().\n");
       break;
-      
+
     default :
       printf("Unknown error %i.\n",WSAGetLastError());
-      break;  
-  }    
+      break;
+  }
 
   WSACleanup();
   exit(0);

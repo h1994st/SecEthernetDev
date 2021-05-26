@@ -1,8 +1,9 @@
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/openssl/ssl.h>
-#include <wolfssl/openssl/pem.h>
+
 #include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/ssl.h>
 
 #include "client.h"
 #include "sample.h"
@@ -11,16 +12,19 @@
 #include <windows.h>
 #include <winsock.h>
 #else
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #endif
 #include <stdlib.h>
 #include <string.h>
 
-#define TERROR(rc) if(rc!=TESLA_OK) {\
-  printf("Client failed %s:%i\n",__FILE__,__LINE__);goto error;}
+#define TERROR(rc)                                       \
+  if (rc != TESLA_OK) {                                  \
+    printf("Client failed %s:%i\n", __FILE__, __LINE__); \
+    goto error;                                          \
+  }
 
 int main(int argc, char **argv) {
   tesla_client_session client;
@@ -38,9 +42,9 @@ int main(int argc, char **argv) {
   int Servsocket;
 #ifdef WIN32
   //initialize the windows socket libraries
-  WORD wVersionRequested = MAKEWORD(1,1);
+  WORD wVersionRequested = MAKEWORD(1, 1);
   WSADATA wsaData;
-  if ( WSAStartup( wVersionRequested, &wsaData ) != 0 ){
+  if (WSAStartup(wVersionRequested, &wsaData) != 0) {
     printf("Error initializing\n");
     handle_error();
   }
@@ -162,7 +166,7 @@ int main(int argc, char **argv) {
   }
 
 #ifdef WIN32
-  CHECKNEGPE( closesocket(Servsocket));
+  CHECKNEGPE(closesocket(Servsocket));
 #else
   CHECKNEGPE(shutdown(Servsocket, 2));
 #endif

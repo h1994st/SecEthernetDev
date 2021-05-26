@@ -3,13 +3,14 @@
    of NTP timestamps
 */
 #include "NTP.h"
-#include <string.h>
-#include <sys/time.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+#include <string.h>
+#include <sys/time.h>
+
 const uint32 FRAC_MAX = 1000000;
-#define NTP_TO_DOUBLE(a) ( a->seconds+(double)(a->fraction)/FRAC_MAX )
+#define NTP_TO_DOUBLE(a) (a->seconds + (double) (a->fraction) / FRAC_MAX)
 
 void NTP_write(void *buf, NTP_t *a) {
   memcpy(buf, &(a->seconds), sizeof(uint32));
@@ -78,7 +79,7 @@ NTP_t NTP_sub(NTP_t *a, NTP_t *b) {
 uint32 NTP_div(NTP_t *a, NTP_t *b) {
   double time = NTP_TO_DOUBLE(a);
   double time2 = NTP_TO_DOUBLE(b);
-  return (uint32) (time / time2);
+  return (uint32)(time / time2);
 }
 
 void NTP_divd(NTP_t *a, double b) {

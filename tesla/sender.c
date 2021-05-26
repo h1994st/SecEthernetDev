@@ -1,10 +1,14 @@
 #include "sender.h"
 #include "octet_stream.h"
 #include <assert.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
-#define TERROR(a) if(a != TESLA_OK){ rc = a; goto error;}
+#define TERROR(a)      \
+  if (a != TESLA_OK) { \
+    rc = a;            \
+    goto error;        \
+  }
 const static int32 ZERO = 0x00000000;
 
 TESLA_ERR sender_alloc(
@@ -98,7 +102,7 @@ TESLA_ERR sender_write_sig_tag(
   octet_wint16(&str, (int16 *) &(ZERO));
   //SSL signature code
   if (sess->pkey) {
-    EVP_MD_CTX *ctx = EVP_MD_CTX_new(); // -- by h1994st
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();// -- by h1994st
     const EVP_MD *type = EVP_md5();
     size = EVP_PKEY_size(sess->pkey) + sizeof(int16);
     //signature length written here:
@@ -109,7 +113,7 @@ TESLA_ERR sender_write_sig_tag(
     EVP_SignUpdate(ctx, octet_buf(&str), octet_tell(&str));
     EVP_SignUpdate(ctx, &nonce, sizeof(int64));
     octetEVPSign(&str, ctx, sess->pkey, EVP_PKEY_size(sess->pkey));
-    EVP_MD_CTX_free(ctx); // -- by h1994st
+    EVP_MD_CTX_free(ctx);// -- by h1994st
   } else {
     octet_wint16(&str, (int16 *) &ZERO);
     //extra informational bits
@@ -118,10 +122,7 @@ TESLA_ERR sender_write_sig_tag(
   wpad(&str);
 
   printf(
-      "%d %lu\n", octet_tell(&str) - i, OCTET_LEN(
-      NTP_SIZE + 3 * sizeof(int16) + sizeof(int32) + sizeof(char)
-          + (((sess)->pkey) ? EVP_PKEY_size((sess)->pkey) + sizeof(int16)
-                            : 0)));
+      "%d %lu\n", octet_tell(&str) - i, OCTET_LEN(NTP_SIZE + 3 * sizeof(int16) + sizeof(int32) + sizeof(char) + (((sess)->pkey) ? EVP_PKEY_size((sess)->pkey) + sizeof(int16) : 0)));
   assert(octet_tell(&str) == sender_sig_tag_size(sess));
   //done writing the signature tag
   return TESLA_OK;
@@ -130,10 +131,11 @@ TESLA_ERR sender_write_sig_tag(
 /* Writes the authentication tag for message m, and places it in buffer buf
  */
 //convenience macro, this function only
-#define CTX_ERROR(str) if(rc!=TESLA_OK){ \
-    ctx_err(&(sess->ctx),str, \
-        rc,__FILE__,__LINE__); \
-    goto error; \
+#define CTX_ERROR(str)               \
+  if (rc != TESLA_OK) {              \
+    ctx_err(&(sess->ctx), str,       \
+            rc, __FILE__, __LINE__); \
+    goto error;                      \
   }
 TESLA_ERR sender_write_auth_tag(
     tesla_sender_session *sess, void *m, int mlen,
@@ -171,7 +173,6 @@ TESLA_ERR sender_write_auth_tag(
   //pad the buffer
   octetwrt(&str, NULL, sess->ctx.Key_l);
   wpad(&str);
-
 
   //get the MAC key
   K = malloc(sess->ctx.Key_l);
@@ -228,7 +229,7 @@ TESLA_ERR sender_copy_key(
   if (i / keyring->buf_size != keyring->index) {
     void *gkey = keyring->keys + (i / keyring->buf_size) * sess->ctx.Key_l;
     int32 c = keyring->buf_size - 1;
-    //tail case, n might not be divisible by the buffer size 
+    //tail case, n might not be divisible by the buffer size
     //in this case the nth key stands for n mod buf keys.
     if (i / keyring->buf_size == keyring->keys_len - 1)
       c = sess->ctx.intervals % keyring->buf_size - 1;

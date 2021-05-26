@@ -13,7 +13,7 @@ typedef char bool;
 #define FALSE 0
 #define TRUE 1
 #define OCTET_SIZE 4
-#define OCTET_LEN(k) (k)+(OCTET_SIZE-((k) % OCTET_SIZE))%OCTET_SIZE
+#define OCTET_LEN(k) (k) + (OCTET_SIZE - ((k) % OCTET_SIZE)) % OCTET_SIZE
 
 typedef enum {
   TESLA_OK,

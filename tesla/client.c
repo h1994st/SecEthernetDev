@@ -1,7 +1,7 @@
 #include "client.h"
 #include "octet_stream.h"
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 /*** BJW: 1/20/03
  * Functions for tesla client
  */
@@ -43,15 +43,19 @@ TESLA_ERR client_read_auth_tag(
 
   //determine if this packet is safe
   rc = ctx_currentInterval(&(sess->ctx), &i_curr, &ctime);
-  if (rc == TESLA_OK || (rc == TESLA_ERR_TIME_EXPIRED
-      && i_curr >= sess->ctx.intervals));
-  else return rc;
+  if (rc == TESLA_OK || (rc == TESLA_ERR_TIME_EXPIRED && i_curr >= sess->ctx.intervals))
+    ;
+  else
+    return rc;
   rc = ctx_currentInterval(&(sess->ctx), &i_past, &ptime);
-  if (rc == TESLA_OK || (rc == TESLA_ERR_TIME_EXPIRED && i_past < 0));
-  else return rc;
+  if (rc == TESLA_OK || (rc == TESLA_ERR_TIME_EXPIRED && i_past < 0))
+    ;
+  else
+    return rc;
 
   //see if the interval from the message is within these bounds
-  if (tag->i >= i_past && tag->i <= i_curr);//message is safe
+  if (tag->i >= i_past && tag->i <= i_curr)
+    ;//message is safe
   else
     return ctx_err(
         &(sess->ctx), "Message interval determined to be unsafe",
@@ -73,7 +77,6 @@ TESLA_ERR client_read_auth_tag(
   }
 
   return TESLA_OK;
-
 }
 
 //buffer the message described by the auth tag so it can be later retrieved
@@ -239,7 +242,7 @@ TESLA_ERR client_alloc(tesla_client_session *sess) {
 }
 
 #define SANITY_ERR(msg) return ctx_err(&(sess->ctx), msg, \
-            TESLA_ERR_BAD_DATA, __FILE__, __LINE__)
+                                       TESLA_ERR_BAD_DATA, __FILE__, __LINE__)
 
 TESLA_ERR client_read_sig_tag(
     tesla_client_session *sess, void *buff, int buflen) {
@@ -266,7 +269,6 @@ TESLA_ERR client_read_sig_tag(
   sess->ctx.MAC_l = MAC_LEN(sess->ctx.MAC_t);
   if (!sess->ctx.MAC_l)
     SANITY_ERR("MAC CTAN invalid");
-
 
   // receive K_0
   if (sess->ctx.Key_l <= 0 || sess->ctx.Key_l > MAX_KEY_LEN)
@@ -304,14 +306,14 @@ TESLA_ERR client_read_sig_tag(
       SANITY_ERR("Bad signature length");
     octet_rbyte(&str, &bits);
     if (sess->pkey && slen) {
-      EVP_MD_CTX *ctx = EVP_MD_CTX_new(); // -- by h1994st
-      const EVP_MD *type = EVP_md5(); // TODO: should avoid MD5 -- by h1994st
+      EVP_MD_CTX *ctx = EVP_MD_CTX_new();// -- by h1994st
+      const EVP_MD *type = EVP_md5();    // TODO: should avoid MD5 -- by h1994st
       TESLA_ERR rc = TESLA_OK;
       EVP_VerifyInit(ctx, type);
       EVP_VerifyUpdate(ctx, octet_buf(&str), octet_tell(&str));
       EVP_VerifyUpdate(ctx, &(sess->nonce), sizeof(sess->nonce));
       rc = octetEVPread(&str, ctx, sess->pkey, slen);
-      EVP_MD_CTX_free(ctx); // -- by h1994st
+      EVP_MD_CTX_free(ctx);// -- by h1994st
       /*BJW 2/22/03
        *SSL is giving me massive issues with
        *the public key private key types, commenting this out for now
