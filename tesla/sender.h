@@ -1,8 +1,11 @@
 #ifndef _TESLA_SENDER_H
 #define _TESLA_SENDER_H
 
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/openssl/evp.h>
+
 #include "tesla.h"
-#include <openssl/evp.h>
 
 typedef struct {
   tesla_ctx ctx;

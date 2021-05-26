@@ -1,4 +1,10 @@
 // Server side implementation of UDP client-server model
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/err.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,9 +18,6 @@
 #include <tesla.h>
 #include <client.h>
 #include "common.h"
-#include <openssl/ssl.h>
-#include <openssl/pem.h>
-#include <openssl/err.h>
 
 int sockfd = -1;
 

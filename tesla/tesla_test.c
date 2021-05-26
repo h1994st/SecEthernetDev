@@ -1,10 +1,15 @@
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/ssl.h>
+#include <wolfssl/openssl/bio.h>
+#include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/x509v3.h>
+
 #include "client.h"
 #include "sender.h"
 #include "tesla.h"
-#include <openssl/err.h>
-#include <openssl/pem.h>
-#include <openssl/ssl.h>
-#include <openssl/x509v3.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -48,9 +53,6 @@ int main(int argc, char **argv) {
   rnonce += clock();
   //just to make this hard predict, xor with something weird from memory
   rnonce = rnonce ^ *(int64 *) sig;
-
-  X509V3_add_standard_extensions();
-  // SSLeay_add_all_algorithms(); // -- deleted by h1994st
 
   //set RSA keys
   pfile = fopen(argv[1], "rb");

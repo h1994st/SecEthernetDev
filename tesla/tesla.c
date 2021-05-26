@@ -1,11 +1,14 @@
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/openssl/evp.h>
+#include <wolfssl/openssl/hmac.h>
+
 //#include "merkle/merkle_tree.h"
 //#include "algorithms/algorithms.h"
 #include <stdlib.h>
 #include <string.h>
 #include "tesla.h"
-#include <openssl/evp.h>
 #include <assert.h>
-#include <openssl/hmac.h>
 
 #define TERROR(a) if(a != TESLA_OK){ rc = a; goto error;}
 

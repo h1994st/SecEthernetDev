@@ -1,9 +1,12 @@
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/err.h>
+
 #include "client.h"
 #include "sample.h"
 #include <stdlib.h>
-#include <openssl/ssl.h>
-#include <openssl/pem.h>
-#include <openssl/err.h>
 #ifdef WIN32
 #include <windows.h>
 #include <winsock.h>

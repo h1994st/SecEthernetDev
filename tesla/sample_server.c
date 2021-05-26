@@ -1,12 +1,15 @@
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/x509v3.h>
+
 #include "tesla.h"
 #include "sender.h"
 #include "sample.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <openssl/pem.h>
-#include <openssl/x509v3.h>
 #ifdef WIN32
 #include <windows.h>
 #include <winsock.h>
@@ -58,8 +61,6 @@ int main(int argc, char **argv) {
   OpenSSL_add_all_algorithms();
   OpenSSL_add_all_ciphers();
   OpenSSL_add_all_digests();
-
-  X509V3_add_standard_extensions();
 
   //read the private key
   if (argc > 1)

@@ -10,11 +10,12 @@ endif ()
 
 # CMake modules
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(CTest)
 
 # C++ language standard
 set(CMAKE_CXX_STANDARD 14)
 
-# WolfSSL
+# wolfSSL
 find_package(WolfSSL REQUIRED)
 message("WolfSSL include: ${WOLFSSL_INCLUDE_DIR}")
 message("WolfSSL libs: ${WOLFSSL_LIBRARY}")
@@ -27,3 +28,7 @@ add_subdirectory(tesla)
 
 # TESLA: CAN over UDP
 add_subdirectory(tesla_can_udp)
+
+# Testing
+enable_testing()
+add_subdirectory(tests)

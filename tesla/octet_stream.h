@@ -5,9 +5,12 @@
       manipulating aligned streams suitable for network
       communication
 */
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/openssl/evp.h>
+
 #include "defs.h"
 #include "NTP.h"
-#include <openssl/evp.h>
 
 typedef struct {
   int32 pos;

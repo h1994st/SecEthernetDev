@@ -1,4 +1,11 @@
 // Client side implementation of UDP client-server model
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/x509v3.h>
+
 #include <linux/can.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -14,10 +21,6 @@
 
 #include "common.h"
 #include <assert.h>
-#include <openssl/err.h>
-#include <openssl/pem.h>
-#include <openssl/ssl.h>
-#include <openssl/x509v3.h>
 #include <sender.h>
 #include <tesla.h>
 
@@ -131,7 +134,6 @@ int main(int argc, char *argv[]) {
   OpenSSL_add_all_algorithms();
   OpenSSL_add_all_ciphers();
   OpenSSL_add_all_digests();
-  X509V3_add_standard_extensions();
 
   pkey = PEM_read_PrivateKey(pfile, NULL, NULL, NULL);
   if (!pkey) {
