@@ -14,7 +14,7 @@ extern "C" {
 
 typedef struct {
   tesla_ctx ctx;
-  NTP_t T_off;//offset between client and sender
+  NTP_t T_off;  //offset between client and sender
   hashtable h_unauth;
   llist l_auth;
   llist l_bad;
@@ -26,14 +26,11 @@ typedef struct {
 
 /***Functions for dealing with the client session**/
 TESLA_ERR client_read_auth_tag(
-    tesla_auth_tag *tag, tesla_client_session *sess,
-    void *buff, int buflen);
-TESLA_ERR client_read_sig_tag(
-    tesla_client_session *sess,
-    void *buff, int buflen);
+    tesla_auth_tag *tag, tesla_client_session *sess, void *buff, int buflen);
+TESLA_ERR
+client_read_sig_tag(tesla_client_session *sess, void *buff, int buflen);
 TESLA_ERR client_buffer(
-    tesla_client_session *sess, tesla_auth_tag *tag,
-    void *msg, int32 mlen);
+    tesla_client_session *sess, tesla_auth_tag *tag, void *msg, int32 mlen);
 TESLA_ERR client_authenticate(tesla_client_session *, tesla_auth_tag *);
 #define client_set_pkey(sess, key) (sess)->pkey = key
 TESLA_ERR client_alloc(tesla_client_session *);

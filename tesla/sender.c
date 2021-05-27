@@ -4,18 +4,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TERROR(a)      \
-  if (a != TESLA_OK) { \
-    rc = a;            \
-    goto error;        \
+#define TERROR(a)                                                              \
+  if (a != TESLA_OK) {                                                         \
+    rc = a;                                                                    \
+    goto error;                                                                \
   }
 const static int32 ZERO = 0x00000000;
 
 TESLA_ERR sender_alloc(
-    tesla_sender_session *sess, NTP_t *T_int, PRF_CTAN key_t,
-    int16 key_l, MAC_CTAN mac_t,
-    PRF_CTAN mkey_t, int16 d_int, int16 f_hmac,
-    int32 intervals, void *pkey) {
+    tesla_sender_session *sess, NTP_t *T_int, PRF_CTAN key_t, int16 key_l,
+    MAC_CTAN mac_t, PRF_CTAN mkey_t, int16 d_int, int16 f_hmac, int32 intervals,
+    void *pkey) {
 
   TESLA_ERR rc = TESLA_OK;
   rc = ctx_alloc(
@@ -24,8 +23,7 @@ TESLA_ERR sender_alloc(
   TERROR(rc);
   if (!MAC_LEN(mac_t))
     return ctx_err(
-        &(sess->ctx), "Bad MAC", TESLA_ERR_CTAN_UNKNOWN,
-        __FILE__, __LINE__);
+        &(sess->ctx), "Bad MAC", TESLA_ERR_CTAN_UNKNOWN, __FILE__, __LINE__);
   //create the keychain
   rc = keychain_alloc(&(sess->keyring), pkey, key_l, intervals, key_t, 256);
   TERROR(rc);
@@ -53,8 +51,7 @@ ANY changes to this function must be reflected in
 sender_sig_tag_size(sender.h)
 */
 TESLA_ERR sender_write_sig_tag(
-    tesla_sender_session *sess, void *buf,
-    int buflen, void *nbuff, int nlen) {
+    tesla_sender_session *sess, void *buf, int buflen, void *nbuff, int nlen) {
   char bits = 0x00;
   octet_stream str = make_octet(nbuff);
   int16 size = 0;
@@ -64,15 +61,15 @@ TESLA_ERR sender_write_sig_tag(
 
   if (nlen != sizeof(int64))
     return ctx_err(
-        &(sess->ctx), "Nonce does not have correct size",
-        TESLA_ERR_BUFF_SMALL, __FILE__, __LINE__);
+        &(sess->ctx), "Nonce does not have correct size", TESLA_ERR_BUFF_SMALL,
+        __FILE__, __LINE__);
   octet_rint64(&str, &nonce);
   str = make_octet(buf);
 
   if (buflen < sender_sig_tag_size(sess))
     return ctx_err(
-        &(sess->ctx), "Buffer for signature too small",
-        TESLA_ERR_BUFF_SMALL, __FILE__, __LINE__);
+        &(sess->ctx), "Buffer for signature too small", TESLA_ERR_BUFF_SMALL,
+        __FILE__, __LINE__);
 
   wNTP(&str, &(sess->ctx.T_0));
   wNTP(&str, &(sess->ctx.T_int));
@@ -95,14 +92,14 @@ TESLA_ERR sender_write_sig_tag(
   wNTP(&str, &ctime);
 
   //construct appropriate bits
-  bits |= 1 << 7;//F
-  bits |= 1 << 6;//I
+  bits |= 1 << 7;  //F
+  bits |= 1 << 6;  //I
   //signature, presently not in use
   //signature type written here:
   octet_wint16(&str, (int16 *) &(ZERO));
   //SSL signature code
   if (sess->pkey) {
-    EVP_MD_CTX *ctx = EVP_MD_CTX_new();// -- by h1994st
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();  // -- by h1994st
     const EVP_MD *type = EVP_md5();
     size = EVP_PKEY_size(sess->pkey) + sizeof(int16);
     //signature length written here:
@@ -113,7 +110,7 @@ TESLA_ERR sender_write_sig_tag(
     EVP_SignUpdate(ctx, octet_buf(&str), octet_tell(&str));
     EVP_SignUpdate(ctx, &nonce, sizeof(int64));
     octetEVPSign(&str, ctx, sess->pkey, EVP_PKEY_size(sess->pkey));
-    EVP_MD_CTX_free(ctx);// -- by h1994st
+    EVP_MD_CTX_free(ctx);  // -- by h1994st
   } else {
     octet_wint16(&str, (int16 *) &ZERO);
     //extra informational bits
@@ -122,7 +119,11 @@ TESLA_ERR sender_write_sig_tag(
   wpad(&str);
 
   printf(
-      "%d %lu\n", octet_tell(&str) - i, OCTET_LEN(NTP_SIZE + 3 * sizeof(int16) + sizeof(int32) + sizeof(char) + (((sess)->pkey) ? EVP_PKEY_size((sess)->pkey) + sizeof(int16) : 0)));
+      "%d %lu\n", octet_tell(&str) - i,
+      OCTET_LEN(
+          NTP_SIZE + 3 * sizeof(int16) + sizeof(int32) + sizeof(char)
+          + (((sess)->pkey) ? EVP_PKEY_size((sess)->pkey) + sizeof(int16) :
+                              0)));
   assert(octet_tell(&str) == sender_sig_tag_size(sess));
   //done writing the signature tag
   return TESLA_OK;
@@ -131,18 +132,16 @@ TESLA_ERR sender_write_sig_tag(
 /* Writes the authentication tag for message m, and places it in buffer buf
  */
 //convenience macro, this function only
-#define CTX_ERROR(str)               \
-  if (rc != TESLA_OK) {              \
-    ctx_err(&(sess->ctx), str,       \
-            rc, __FILE__, __LINE__); \
-    goto error;                      \
+#define CTX_ERROR(str)                                                         \
+  if (rc != TESLA_OK) {                                                        \
+    ctx_err(&(sess->ctx), str, rc, __FILE__, __LINE__);                        \
+    goto error;                                                                \
   }
 TESLA_ERR sender_write_auth_tag(
-    tesla_sender_session *sess, void *m, int mlen,
-    void *buf, int buflen) {
+    tesla_sender_session *sess, void *m, int mlen, void *buf, int buflen) {
   int32 i;
   TESLA_ERR rc;
-  void *K = NULL;//mac key
+  void *K = NULL;  //mac key
   octet_stream str = make_octet(buf);
   //determine if the buffer is large enough
   if (buflen < sender_auth_tag_size(sess)) {
@@ -182,13 +181,12 @@ TESLA_ERR sender_write_auth_tag(
 
   //for safety, mac_key = PRF(k)
   rc = PRF(
-      sess->ctx.PRFKey_t, K, sess->ctx.Key_l,
-      K, sess->ctx.Key_l, &(sess->ctx));
+      sess->ctx.PRFKey_t, K, sess->ctx.Key_l, K, sess->ctx.Key_l, &(sess->ctx));
   CTX_ERROR("Failed to PRF key");
 
-  rc = MAC(
-      sess->ctx.MAC_t, m, mlen, K, sess->ctx.Key_l, str.cbuff,
-      sess->ctx.MAC_l, &(sess->ctx));
+  rc =
+      MAC(sess->ctx.MAC_t, m, mlen, K, sess->ctx.Key_l, str.cbuff,
+          sess->ctx.MAC_l, &(sess->ctx));
   CTX_ERROR("Failed to PRF key");
   //pad it
   octetwrt(&str, NULL, sess->ctx.MAC_l);
@@ -208,9 +206,8 @@ error:
   A thread should wait in copyKey if the generating thread hasn't
   gotten the key it needs yet
 */
-TESLA_ERR sender_copy_key(
-    tesla_sender_session *sess, int i, void *buf,
-    int buflen) {
+TESLA_ERR
+sender_copy_key(tesla_sender_session *sess, int i, void *buf, int buflen) {
   //convenience pointer
   tesla_keychain *keyring = &(sess->keyring);
   TESLA_ERR rc;
@@ -222,8 +219,8 @@ TESLA_ERR sender_copy_key(
   */
   if (i >= sess->ctx.intervals)
     return ctx_err(
-        &(sess->ctx), "Out of keys to allocate",
-        TESLA_ERR_NO_KEYS, __FILE__, __LINE__);
+        &(sess->ctx), "Out of keys to allocate", TESLA_ERR_NO_KEYS, __FILE__,
+        __LINE__);
 
   //generate the keys if they don't exist
   if (i / keyring->buf_size != keyring->index) {
@@ -240,14 +237,14 @@ TESLA_ERR sender_copy_key(
 
     //generate all the previous keys
     for (; c >= 0; c--) {
-      rc = PRF(
-          sess->ctx.Key_t, gkey, sess->ctx.Key_l,
-          keyring->keybuff + (c * sess->ctx.Key_l), sess->ctx.Key_l,
-          &(sess->ctx));
+      rc =
+          PRF(sess->ctx.Key_t, gkey, sess->ctx.Key_l,
+              keyring->keybuff + (c * sess->ctx.Key_l), sess->ctx.Key_l,
+              &(sess->ctx));
       if (rc != TESLA_OK)
         return ctx_err(
-            &(sess->ctx), "Unable to PRF to previous key", rc,
-            __FILE__, __LINE__);
+            &(sess->ctx), "Unable to PRF to previous key", rc, __FILE__,
+            __LINE__);
       gkey = keyring->keybuff + (c * sess->ctx.Key_l);
     }
   }

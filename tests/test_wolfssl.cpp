@@ -17,7 +17,8 @@ class WolfSSLTest : public ::testing::Test {
 TEST_F(WolfSSLTest, TestKeyLoading) {
   auto bio = wolfSSL_BIO_new_file("data/privkey.pem", "rb");
   EXPECT_NE(bio, nullptr);
-  auto private_key = wolfSSL_PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
+  auto private_key =
+      wolfSSL_PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
   EXPECT_NE(private_key, nullptr);
   wolfSSL_EVP_PKEY_free(private_key);
   wolfSSL_BIO_free(bio);

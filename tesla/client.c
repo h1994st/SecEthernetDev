@@ -6,13 +6,13 @@
  * Functions for tesla client
  */
 
-TESLA_ERR client_write_nonce(
-    tesla_client_session *sess, void *buff, int buflen) {
+TESLA_ERR
+client_write_nonce(tesla_client_session *sess, void *buff, int buflen) {
   octet_stream str = make_octet(buff);
   if (buflen < client_nonce_len(sess))
     return ctx_err(
-        &(sess->ctx), "Buffer not long enough for nonce",
-        TESLA_ERR_BUFF_SMALL, __FILE__, __LINE__);
+        &(sess->ctx), "Buffer not long enough for nonce", TESLA_ERR_BUFF_SMALL,
+        __FILE__, __LINE__);
 
   octet_wint64(&str, &(sess->nonce));
   //T_off set to time the nonce was written
@@ -23,8 +23,7 @@ TESLA_ERR client_write_nonce(
 
 //read a message into the authentication tag
 TESLA_ERR client_read_auth_tag(
-    tesla_auth_tag *tag, tesla_client_session *sess,
-    void *buff, int buflen) {
+    tesla_auth_tag *tag, tesla_client_session *sess, void *buff, int buflen) {
   NTP_t ctime;
   NTP_t ptime;
   TESLA_ERR rc;
@@ -43,7 +42,8 @@ TESLA_ERR client_read_auth_tag(
 
   //determine if this packet is safe
   rc = ctx_currentInterval(&(sess->ctx), &i_curr, &ctime);
-  if (rc == TESLA_OK || (rc == TESLA_ERR_TIME_EXPIRED && i_curr >= sess->ctx.intervals))
+  if (rc == TESLA_OK
+      || (rc == TESLA_ERR_TIME_EXPIRED && i_curr >= sess->ctx.intervals))
     ;
   else
     return rc;
@@ -55,7 +55,7 @@ TESLA_ERR client_read_auth_tag(
 
   //see if the interval from the message is within these bounds
   if (tag->i >= i_past && tag->i <= i_curr)
-    ;//message is safe
+    ;  //message is safe
   else
     return ctx_err(
         &(sess->ctx), "Message interval determined to be unsafe",
@@ -72,8 +72,8 @@ TESLA_ERR client_read_auth_tag(
     free(kc);
     if (d)
       return ctx_err(
-          &(sess->ctx), "Key was invalid",
-          TESLA_ERR_KEY_INVALID, __FILE__, __LINE__);
+          &(sess->ctx), "Key was invalid", TESLA_ERR_KEY_INVALID, __FILE__,
+          __LINE__);
   }
 
   return TESLA_OK;
@@ -82,8 +82,7 @@ TESLA_ERR client_read_auth_tag(
 //buffer the message described by the auth tag so it can be later retrieved
 //this to be used with normal authentication
 TESLA_ERR client_buffer(
-    tesla_client_session *sess, tesla_auth_tag *tag,
-    void *msg, int32 mlen) {
+    tesla_client_session *sess, tesla_auth_tag *tag, void *msg, int32 mlen) {
   TESLA_ERR rc = TESLA_OK;
   tesla_pkt_tag *pkt = pkttag_new();
   llist *plist = NULL;
@@ -126,9 +125,9 @@ TESLA_ERR client_authenticate(tesla_client_session *sess, tesla_auth_tag *tag) {
 
   while (I_d > sess->c) {
     //Km=PRF(K)
-    rc = PRF(
-        sess->ctx.PRFKey_t, K, sess->ctx.Key_l,
-        Km, sess->ctx.Key_l, &(sess->ctx));
+    rc =
+        PRF(sess->ctx.PRFKey_t, K, sess->ctx.Key_l, Km, sess->ctx.Key_l,
+            &(sess->ctx));
     if (rc != TESLA_OK) goto error;
 
     if (hashtable_lookup(&(sess->h_unauth), I_d, (void **) &plist)) {
@@ -136,9 +135,9 @@ TESLA_ERR client_authenticate(tesla_client_session *sess, tesla_auth_tag *tag) {
       hashtable_remove(&(sess->h_unauth), I_d);
       pkt = llist_get(plist);
       while (pkt != NULL) {
-        rc = MAC(
-            sess->ctx.MAC_t, pkt->msg, pkt->mlen, Km, sess->ctx.Key_l, mac,
-            sess->ctx.MAC_l, &(sess->ctx));
+        rc =
+            MAC(sess->ctx.MAC_t, pkt->msg, pkt->mlen, Km, sess->ctx.Key_l, mac,
+                sess->ctx.MAC_l, &(sess->ctx));
         if (rc != TESLA_OK) goto error;
 
         //pick a list based upon authentication result
@@ -151,13 +150,12 @@ TESLA_ERR client_authenticate(tesla_client_session *sess, tesla_auth_tag *tag) {
         }
         pkt = llist_get(plist);
       }
-      free(plist);//now free plist
+      free(plist);  //now free plist
     }
     //go to a previous key
     I_d--;
     rc = PRF(
-        sess->ctx.Key_t, K, sess->ctx.Key_l,
-        K, sess->ctx.Key_l, &(sess->ctx));
+        sess->ctx.Key_t, K, sess->ctx.Key_l, K, sess->ctx.Key_l, &(sess->ctx));
     if (rc != TESLA_OK) goto error;
   }
 
@@ -199,8 +197,7 @@ void *client_get_bad_msg(tesla_client_session *sess, int *mlen) {
 
   tesla_pkt_tag *pkt = llist_get(&(sess->l_bad));
 
-  if (pkt == NULL)
-    return NULL;
+  if (pkt == NULL) return NULL;
 
   msg = pkt->msg;
   *mlen = pkt->mlen;
@@ -215,9 +212,8 @@ int client_key_verify(tesla_client_session *sess, int32 d, void *Kd) {
   if (d >= sess->c) {
     // a new key, ensure that it is correct via d-c PRF's
     for (; d > sess->c; d--) {
-      PRF(
-          sess->ctx.Key_t, Kd, sess->ctx.Key_l,
-          Kd, sess->ctx.Key_l, &(sess->ctx));
+      PRF(sess->ctx.Key_t, Kd, sess->ctx.Key_l, Kd, sess->ctx.Key_l,
+          &(sess->ctx));
     }
 
     return memcmp(Kd, sess->K_c, sess->ctx.Key_l);
@@ -241,11 +237,11 @@ TESLA_ERR client_alloc(tesla_client_session *sess) {
   return TESLA_OK;
 }
 
-#define SANITY_ERR(msg) return ctx_err(&(sess->ctx), msg, \
-                                       TESLA_ERR_BAD_DATA, __FILE__, __LINE__)
+#define SANITY_ERR(msg)                                                        \
+  return ctx_err(&(sess->ctx), msg, TESLA_ERR_BAD_DATA, __FILE__, __LINE__)
 
-TESLA_ERR client_read_sig_tag(
-    tesla_client_session *sess, void *buff, int buflen) {
+TESLA_ERR
+client_read_sig_tag(tesla_client_session *sess, void *buff, int buflen) {
   octet_stream str = make_octet(buff);
   TESLA_ERR rc = TESLA_OK;
   NTP_t stime;
@@ -267,8 +263,7 @@ TESLA_ERR client_read_sig_tag(
   rc = hashtable_alloc(&(sess->h_unauth), sess->ctx.d_int * 4);
   // figure out the mac length
   sess->ctx.MAC_l = MAC_LEN(sess->ctx.MAC_t);
-  if (!sess->ctx.MAC_l)
-    SANITY_ERR("MAC CTAN invalid");
+  if (!sess->ctx.MAC_l) SANITY_ERR("MAC CTAN invalid");
 
   // receive K_0
   if (sess->ctx.Key_l <= 0 || sess->ctx.Key_l > MAX_KEY_LEN)
@@ -283,8 +278,7 @@ TESLA_ERR client_read_sig_tag(
   octet_rint32(&str, &(sess->ctx.intervals));
   octet_rint16(&str, &(sess->ctx.d_int_n));
 
-  if (sess->ctx.intervals < 1)
-    SANITY_ERR("Number of intervals wrong");
+  if (sess->ctx.intervals < 1) SANITY_ERR("Number of intervals wrong");
 
   //read when the signature was made, figure out T_off
   rNTP(&str, &stime);
@@ -302,18 +296,17 @@ TESLA_ERR client_read_sig_tag(
     //BJW:  presently ignoring the sig type, this needs to be fixed
     octet_rint16(&str, &sig_type);
     octet_rint16(&str, &slen);
-    if (slen < 0)
-      SANITY_ERR("Bad signature length");
+    if (slen < 0) SANITY_ERR("Bad signature length");
     octet_rbyte(&str, &bits);
     if (sess->pkey && slen) {
-      EVP_MD_CTX *ctx = EVP_MD_CTX_new();// -- by h1994st
-      const EVP_MD *type = EVP_md5();    // TODO: should avoid MD5 -- by h1994st
+      EVP_MD_CTX *ctx = EVP_MD_CTX_new();  // -- by h1994st
+      const EVP_MD *type = EVP_md5();  // TODO: should avoid MD5 -- by h1994st
       TESLA_ERR rc = TESLA_OK;
       EVP_VerifyInit(ctx, type);
       EVP_VerifyUpdate(ctx, octet_buf(&str), octet_tell(&str));
       EVP_VerifyUpdate(ctx, &(sess->nonce), sizeof(sess->nonce));
       rc = octetEVPread(&str, ctx, sess->pkey, slen);
-      EVP_MD_CTX_free(ctx);// -- by h1994st
+      EVP_MD_CTX_free(ctx);  // -- by h1994st
       /*BJW 2/22/03
        *SSL is giving me massive issues with
        *the public key private key types, commenting this out for now
@@ -321,17 +314,16 @@ TESLA_ERR client_read_sig_tag(
       switch (rc) {
         case TESLA_ERR_INVALID_SIGNATURE:
           return ctx_err(
-              &(sess->ctx), "Signature does not match",
-              rc, __FILE__, __LINE__);
+              &(sess->ctx), "Signature does not match", rc, __FILE__, __LINE__);
         case TESLA_ERR_BAD_SIGNATURE:
           return ctx_err(
-              &(sess->ctx), "OpenSSL Error while verifying signature",
-              rc, __FILE__, __LINE__);
+              &(sess->ctx), "OpenSSL Error while verifying signature", rc,
+              __FILE__, __LINE__);
         case TESLA_OK: break;
         default:
           return ctx_err(
-              &(sess->ctx), "Error while verifying signature",
-              rc, __FILE__, __LINE__);
+              &(sess->ctx), "Error while verifying signature", rc, __FILE__,
+              __LINE__);
       }
     } else if (slen) {
       //the server wrote a signature, and we don't have a key to read it

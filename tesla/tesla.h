@@ -78,26 +78,23 @@ typedef struct {
 
 //take key k and derive the previous key from it, placing the new key in buff
 //Apply the specified PRF function, given a seed
-TESLA_ERR PRF(
-    PRF_CTAN type, void *key, int keylen, void *out, int outlen,
+TESLA_ERR
+PRF(PRF_CTAN type, void *key, int keylen, void *out, int outlen,
     tesla_ctx *ctx);
-TESLA_ERR MAC(
-    MAC_CTAN type, void *msg, int msglen, void *key, int keylen, void *out,
+TESLA_ERR
+MAC(MAC_CTAN type, void *msg, int msglen, void *key, int keylen, void *out,
     int outlen, tesla_ctx *ctx);
 int16 MAC_LEN(MAC_CTAN type);
 
 TESLA_ERR ctx_currentInterval(tesla_ctx *ctx, int32 *i, NTP_t *a);
 TESLA_ERR ctx_alloc(
-    tesla_ctx *ctx, NTP_t *T_int, PRF_CTAN key_t,
-    int16 key_l, MAC_CTAN mac_t, int16 Mac_l,
-    PRF_CTAN mkey_t, int16 d_int, int16 f_hmac,
-    int32 intervals);
-TESLA_ERR ctx_err(
-    tesla_ctx *ctx, char *msg, TESLA_ERR code, char *file, int line);
+    tesla_ctx *ctx, NTP_t *T_int, PRF_CTAN key_t, int16 key_l, MAC_CTAN mac_t,
+    int16 Mac_l, PRF_CTAN mkey_t, int16 d_int, int16 f_hmac, int32 intervals);
+TESLA_ERR
+ctx_err(tesla_ctx *ctx, char *msg, TESLA_ERR code, char *file, int line);
 void ctx_print_err(tesla_ctx *ctx);
-#define ctx_auth_tag_size(ctx) (            \
-    OCTET_LEN(sizeof(int32) + (ctx)->Key_l) \
-    + OCTET_LEN((ctx)->MAC_l))
+#define ctx_auth_tag_size(ctx)                                                 \
+  (OCTET_LEN(sizeof(int32) + (ctx)->Key_l) + OCTET_LEN((ctx)->MAC_l))
 
 #define err_new() (tesla_err *) (malloc(sizeof(tesla_err)))
 
@@ -107,16 +104,15 @@ void ctx_print_err(tesla_ctx *ctx);
 TESLA_ERR authtag_alloc(tesla_auth_tag *tag, tesla_ctx *ctx);
 
 TESLA_ERR keychain_alloc(
-    tesla_keychain *kring, void *mkey, int keylen,
-    int32 keys, PRF_CTAN key_t, int32 bufsize);
+    tesla_keychain *kring, void *mkey, int keylen, int32 keys, PRF_CTAN key_t,
+    int32 bufsize);
 
 #define pkttag_new() (tesla_pkt_tag *) (malloc(sizeof(tesla_pkt_tag)))
-#define pkttag_free(ptr) \
-  free(ptr->MAC);        \
+#define pkttag_free(ptr)                                                       \
+  free(ptr->MAC);                                                              \
   free(ptr)
-TESLA_ERR pkttag_alloc(
-    tesla_pkt_tag *, tesla_ctx *ctx, void *MAC,
-    void *msg, int32 mlen);
+TESLA_ERR
+pkttag_alloc(tesla_pkt_tag *, tesla_ctx *ctx, void *MAC, void *msg, int32 mlen);
 void printbuf(char *, int);
 
 #ifdef __cplusplus

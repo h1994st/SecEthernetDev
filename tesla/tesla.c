@@ -11,19 +11,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TERROR(a)      \
-  if (a != TESLA_OK) { \
-    rc = a;            \
-    goto error;        \
+#define TERROR(a)                                                              \
+  if (a != TESLA_OK) {                                                         \
+    rc = a;                                                                    \
+    goto error;                                                                \
   }
 
 const int32 ZERO = 0x00000000;
 
 void printbuf(char *s, int slen) {
   int i;
-  for (i = 0; i < slen; i++) {
-    printf("%.2x", s[i]);
-  }
+  for (i = 0; i < slen; i++) { printf("%.2x", s[i]); }
   printf("\n");
 }
 
@@ -78,9 +76,8 @@ error:
 }
 
 TESLA_ERR ctx_alloc(
-    tesla_ctx *ctx, NTP_t *T_int, PRF_CTAN key_t,
-    int16 key_l, MAC_CTAN mac_t, int16 Mac_l, PRF_CTAN mkey_t,
-    int16 d_int, int16 f_hmac, int32 intervals) {
+    tesla_ctx *ctx, NTP_t *T_int, PRF_CTAN key_t, int16 key_l, MAC_CTAN mac_t,
+    int16 Mac_l, PRF_CTAN mkey_t, int16 d_int, int16 f_hmac, int32 intervals) {
   ctx->T_int = *T_int;
   ctx->Key_t = key_t;
   ctx->Key_l = key_l;
@@ -101,8 +98,7 @@ TESLA_ERR ctx_currentInterval(tesla_ctx *ctx, int32 *i, NTP_t *atime) {
   NTP_t ctime;
   NTP_t dtime;
 
-  if (atime == NULL)
-    NTP_now(&ctime);
+  if (atime == NULL) NTP_now(&ctime);
   else
     ctime = *atime;
   dtime = NTP_dif(&ctime, &(ctx->T_0));
@@ -111,8 +107,8 @@ TESLA_ERR ctx_currentInterval(tesla_ctx *ctx, int32 *i, NTP_t *atime) {
   //that it is valid for this context
   if (*i < 0 || *i >= ctx->intervals) {
     ctx_err(
-        ctx, "Interval determined invalid", TESLA_ERR_TIME_EXPIRED,
-        __FILE__, __LINE__);
+        ctx, "Interval determined invalid", TESLA_ERR_TIME_EXPIRED, __FILE__,
+        __LINE__);
     return TESLA_ERR_TIME_EXPIRED;
   }
   return TESLA_OK;
@@ -120,8 +116,8 @@ TESLA_ERR ctx_currentInterval(tesla_ctx *ctx, int32 *i, NTP_t *atime) {
 
 //in future this should probably be written as some sort of
 //queue so that multiple errors can be generated and traced
-TESLA_ERR ctx_err(
-    tesla_ctx *ctx, char *msg, TESLA_ERR code, char *filename, int line) {
+TESLA_ERR
+ctx_err(tesla_ctx *ctx, char *msg, TESLA_ERR code, char *filename, int line) {
   tesla_err *err = err_new();
   //it's possible we're in memory hell, if err_new fails, we want a diagnostic
   //message and the tesla err returned
@@ -135,14 +131,11 @@ TESLA_ERR ctx_err(
   err->err_line = line;
   err->err_code = code;
   err->err_file = filename;
-  if (llist_add(&(ctx->err_stack), err) != TESLA_OK)
-    goto error;
+  if (llist_add(&(ctx->err_stack), err) != TESLA_OK) goto error;
 
   return code;
 error:
-  printf(
-      "TESLA ERROR %s : %i\n\t%s\nCODE:%i", filename, line,
-      msg, code);
+  printf("TESLA ERROR %s : %i\n\t%s\nCODE:%i", filename, line, msg, code);
   return code;
 }
 
@@ -163,8 +156,8 @@ void ctx_print_err(tesla_ctx *ctx) {
   }
 }
 
-TESLA_ERR PRF(
-    PRF_CTAN type, void *key, int keylen, void *out, int outlen,
+TESLA_ERR
+PRF(PRF_CTAN type, void *key, int keylen, void *out, int outlen,
     tesla_ctx *ctx) {
   char dummy[32];
   const EVP_MD *md;
@@ -179,13 +172,10 @@ TESLA_ERR PRF(
       //EVP_md5 returns a constant structure, no need to free it
       md = EVP_md5();
       break;
-    case HMAC_SHA256:
-      md = EVP_sha256();
-      break;
+    case HMAC_SHA256: md = EVP_sha256(); break;
     default:
       return ctx_err(
-          ctx, "Unknown PRF CTAN",
-          TESLA_ERR_CTAN_UNKNOWN, __FILE__, __LINE__);
+          ctx, "Unknown PRF CTAN", TESLA_ERR_CTAN_UNKNOWN, __FILE__, __LINE__);
   }
 
   // Check that MD returns enough bytes for keylength
@@ -222,8 +212,8 @@ int16 MAC_LEN(MAC_CTAN type) {
 /* creates a MAC based on the key passed in for message msg.  The mac is placed in
    out an error is returned if there is not enough data to fill out based
    on the MAC type chosen */
-TESLA_ERR MAC(
-    MAC_CTAN type, void *msg, int mlen, void *key, int keylen, void *out,
+TESLA_ERR
+MAC(MAC_CTAN type, void *msg, int mlen, void *key, int keylen, void *out,
     int outlen, tesla_ctx *ctx) {
   const EVP_MD *md;
   int len;
@@ -235,13 +225,10 @@ TESLA_ERR MAC(
       //EVP_md5 returns a constant structure, no need to free it
       md = EVP_md5();
       break;
-    case MAC_SHA256:
-      md = EVP_sha256();
-      break;
+    case MAC_SHA256: md = EVP_sha256(); break;
     default:
       return ctx_err(
-          ctx, "Unknown MAC CTAN",
-          TESLA_ERR_CTAN_UNKNOWN, __FILE__, __LINE__);
+          ctx, "Unknown MAC CTAN", TESLA_ERR_CTAN_UNKNOWN, __FILE__, __LINE__);
   }
 
   // Check that MD returns enough bytes for keylength

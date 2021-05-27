@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define RET_NULL(a) \
+#define RET_NULL(a)                                                            \
   if (a == NULL) return TESLA_ERR_NO_MEMORY
 
 /*int main(void){
@@ -45,8 +45,7 @@ void hashtable_free(hashtable *tbl) {
   if (tbl == NULL) return;
 
   for (i = 0; i < tbl->table_size; i++)
-    if (tbl->table[i] != NULL)
-      hashnode_multi_free(tbl->table[i]);
+    if (tbl->table[i] != NULL) hashnode_multi_free(tbl->table[i]);
 
   free(tbl->table);
   free(tbl);
@@ -69,8 +68,7 @@ TESLA_ERR hashtable_insert(hashtable *tbl, int32 elm, void *obj) {
   else {
     //not at the head, search for it
     hash_node *curr = tbl->table[pos];
-    while (curr->next != NULL && elm > curr->next->elem)
-      curr = curr->next;
+    while (curr->next != NULL && elm > curr->next->elem) curr = curr->next;
 
     if (curr->elem == elm) {
       curr->dat = obj;
@@ -88,8 +86,7 @@ void hashnode_free(hash_node *node) {
 }
 
 void hashnode_multi_free(hash_node *node) {
-  if (node->next != NULL)
-    hashnode_multi_free(node->next);
+  if (node->next != NULL) hashnode_multi_free(node->next);
 
   free(node->dat);
   free(node);
@@ -136,11 +133,9 @@ bool hashtable_lookup(hashtable *tbl, int32 elm, void **obj) {
   int32 pos = hashtable_hash(tbl, elm);
 
   hash_node *curr = tbl->table[pos];
-  while (curr != NULL && curr->elem != elm)
-    curr = curr->next;
+  while (curr != NULL && curr->elem != elm) curr = curr->next;
 
-  if (curr == NULL)
-    return FALSE;
+  if (curr == NULL) return FALSE;
   else {
     *obj = curr->dat;
     return TRUE;

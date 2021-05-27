@@ -20,10 +20,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TERROR(rc)                                       \
-  if (rc != TESLA_OK) {                                  \
-    printf("Client failed %s:%i\n", __FILE__, __LINE__); \
-    goto error;                                          \
+#define TERROR(rc)                                                             \
+  if (rc != TESLA_OK) {                                                        \
+    printf("Client failed %s:%i\n", __FILE__, __LINE__);                       \
+    goto error;                                                                \
   }
 
 int main(int argc, char **argv) {
@@ -50,8 +50,7 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  if (argc > 1)
-    pfile = fopen(argv[1], "r");
+  if (argc > 1) pfile = fopen(argv[1], "r");
   else
     pfile = fopen("pubkey.pem", "r");
 

@@ -26,12 +26,12 @@
 
 #define T_INT 1000
 #define D_INT 3
-#define TERROR(rc) \
+#define TERROR(rc)                                                             \
   if (rc != TESLA_OK) goto error
-#define ERR(msg) \
-  {              \
-    printf(msg); \
-    goto error;  \
+#define ERR(msg)                                                               \
+  {                                                                            \
+    printf(msg);                                                               \
+    goto error;                                                                \
   }
 
 int main(int argc, char **argv) {
@@ -54,17 +54,16 @@ int main(int argc, char **argv) {
   int32 dlen = 0;
   int32 nlen = 0;
   int32 client_ip;
-#define BUFBIG(x)          \
-  if (x > 1024) {          \
-    printf("Too long!\n"); \
-    exit(-1);              \
+#define BUFBIG(x)                                                              \
+  if (x > 1024) {                                                              \
+    printf("Too long!\n");                                                     \
+    exit(-1);                                                                  \
   }
   /*Set up the sockets if needed */
 #ifdef WIN32
   WORD wVersionRequested = MAKEWORD(1, 1);
   WSADATA wsaData;
-  if (WSAStartup(wVersionRequested, &wsaData) != 0)
-    handle_error();
+  if (WSAStartup(wVersionRequested, &wsaData) != 0) handle_error();
 #endif
 
   /** Set up openssl */
@@ -73,15 +72,12 @@ int main(int argc, char **argv) {
   OpenSSL_add_all_digests();
 
   //read the private key
-  if (argc > 1)
-    pfile = fopen(argv[1], "rb");
+  if (argc > 1) pfile = fopen(argv[1], "rb");
   else
     pfile = fopen("privkey.pem", "rb");
-  if (pfile == NULL)
-    ERR("Couldn't open private key");
+  if (pfile == NULL) ERR("Couldn't open private key");
   pkey = PEM_read_PrivateKey(pfile, NULL, NULL, NULL);
-  if (pkey == NULL)
-    ERR("Couldn't read private key");
+  if (pkey == NULL) ERR("Couldn't read private key");
   fclose(pfile);
 
   /*Sender set up, allocate the session structure and start the sender session */
@@ -116,14 +112,14 @@ int main(int argc, char **argv) {
   }
   client_ip = ntohl(peer.sin_addr.s_addr);
   printf(
-      "Server: Connection from %u.%u.%u.%u:%u\n",
-      IP_ADDR_FORMAT(client_ip),
+      "Server: Connection from %u.%u.%u.%u:%u\n", IP_ADDR_FORMAT(client_ip),
       (unsigned) ntohs(peer.sin_port));
 
   //sleep(1);//simulate a little bit of network delay
   //receive the nonce
   {
-    CHECKNEGPE(recv(peerfd, (char *) &nlen, 4, MSG_WAITALL));//read the nlength
+    CHECKNEGPE(
+        recv(peerfd, (char *) &nlen, 4, MSG_WAITALL));  //read the nlength
     nlen = ntohl(nlen);
     BUFBIG(nlen);
     printf("Server: Receiving nonce %d\n", nlen);
@@ -189,14 +185,14 @@ int main(int argc, char **argv) {
       printf("Server: Sending %i\n", i);
       if (i % 3 != 0)
         CHECKNEGPE(sendto(
-            sockfd, data, dlen + 4, 0,
-            (struct sockaddr *) &receiver, sizeof(receiver)));
+            sockfd, data, dlen + 4, 0, (struct sockaddr *) &receiver,
+            sizeof(receiver)));
 
       if (i % 2 != 0) {
         memcpy(data, &RAND[i], 4);
         CHECKNEGPE(sendto(
-            sockfd, data, dlen + 4, 0,
-            (struct sockaddr *) &receiver, sizeof(receiver)));
+            sockfd, data, dlen + 4, 0, (struct sockaddr *) &receiver,
+            sizeof(receiver)));
       }
       sleep(1);
     }

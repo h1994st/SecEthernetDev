@@ -40,8 +40,8 @@ hash_node *hashnode_add(hash_node *curr, hash_node *add);
 #define llist_new() malloc(sizeof(llist))
 #define llist_alloc(ls) ((ls)->list = NULL)
 TESLA_ERR llist_add(llist *, void *);
-#define llist_concat(dst, src)          \
-  hashnode_add((l1)->list, (l2)->list); \
+#define llist_concat(dst, src)                                                 \
+  hashnode_add((l1)->list, (l2)->list);                                        \
   (l2)->list = NULL;
 void *llist_get(llist *);
 

@@ -21,8 +21,8 @@ octet_stream make_octet(void *buf) {
   return str;
 }
 
-TESLA_ERR octetEVPSign(
-    octet_stream *str, EVP_MD_CTX *ctx, EVP_PKEY *pkey, int16 slen) {
+TESLA_ERR
+octetEVPSign(octet_stream *str, EVP_MD_CTX *ctx, EVP_PKEY *pkey, int16 slen) {
   int s = 0;
   char *sig = NULL;
   sig = malloc(slen);
@@ -42,8 +42,8 @@ TESLA_ERR octetEVPSign(
   return TESLA_OK;
 }
 
-TESLA_ERR octetEVPread(
-    octet_stream *str, EVP_MD_CTX *ctx, EVP_PKEY *pkey, int16 slen) {
+TESLA_ERR
+octetEVPread(octet_stream *str, EVP_MD_CTX *ctx, EVP_PKEY *pkey, int16 slen) {
   int16 s = 0;
   int ret = 0;
   octet_rint16(str, &s);
@@ -52,8 +52,7 @@ TESLA_ERR octetEVPread(
   str->pos += s;
   //if we expected more than s bytes, skip the rest
   octet_skip(str, slen - s);
-  if (ret == -1)
-    return TESLA_ERR_BAD_SIGNATURE;
+  if (ret == -1) return TESLA_ERR_BAD_SIGNATURE;
   else if (ret == 0)
     return TESLA_ERR_INVALID_SIGNATURE;
   else
@@ -61,9 +60,7 @@ TESLA_ERR octetEVPread(
 }
 
 void octetwrt(octet_stream *str, void const *s2, int len) {
-  if (s2 != NULL) {
-    memcpy(str->cbuff, s2, len);
-  }
+  if (s2 != NULL) { memcpy(str->cbuff, s2, len); }
   str->pos += len;
   str->cbuff += len;
 }

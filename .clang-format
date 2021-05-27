@@ -1,12 +1,12 @@
 # Generated from CLion C/C++ Code Style settings
 BasedOnStyle: LLVM
 AccessModifierOffset: -1
-AlignAfterOpenBracket: Align
+AlignAfterOpenBracket: AlwaysBreak
 AlignConsecutiveAssignments: false
-AlignOperands: false
-AllowAllArgumentsOnNextLine: false
+AlignOperands: DontAlign
+AllowAllArgumentsOnNextLine: true
 AllowAllConstructorInitializersOnNextLine: false
-AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: true
 AllowShortBlocksOnASingleLine: Always
 AllowShortCaseLabelsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: All
@@ -15,6 +15,8 @@ AllowShortLambdasOnASingleLine: All
 AllowShortLoopsOnASingleLine: true
 AlwaysBreakAfterReturnType: None
 AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: true
+BinPackParameters: true
 BreakBeforeBraces: Custom
 BraceWrapping:
   AfterCaseLabel: false
@@ -30,10 +32,11 @@ BraceWrapping:
   SplitEmptyFunction: false
   SplitEmptyRecord: true
 BreakBeforeBinaryOperators: NonAssignment
-BreakBeforeTernaryOperators: true
+BreakBeforeTernaryOperators: false
 BreakConstructorInitializers: BeforeColon
 BreakInheritanceList: BeforeColon
-ColumnLimit: 0
+BreakStringLiterals: true
+ColumnLimit: 80
 CompactNamespaces: false
 ContinuationIndentWidth: 4
 IndentCaseLabels: true
@@ -56,7 +59,7 @@ SpaceBeforeInheritanceColon: true
 SpaceBeforeParens: ControlStatements
 SpaceBeforeRangeBasedForLoopColon: true
 SpaceInEmptyParentheses: false
-SpacesBeforeTrailingComments: 0
+SpacesBeforeTrailingComments: 2
 SpacesInAngles: false
 SpacesInCStyleCastParentheses: false
 SpacesInContainerLiterals: false

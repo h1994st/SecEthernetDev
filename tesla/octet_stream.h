@@ -43,8 +43,8 @@ void wpad(octet_stream *);
 */
 #define octet_buf(str) ((str)->cbuff - (str)->pos)
 #define octet_tell(str) ((str)->pos)
-#define octet_skip(str, num) \
-  (str)->pos += num;         \
+#define octet_skip(str, num)                                                   \
+  (str)->pos += num;                                                           \
   (str)->cbuff += num
 
 /* Functions for writing NTP objects to the stream */
@@ -75,13 +75,11 @@ void octet_rint64(octet_stream *, int64 *);
 #define octet_wbyte(str, c) octetwrt(str, (char *) c, sizeof(char))
 #define octet_rbyte(str, c) octetrd(str, (char *) c, sizeof(char))
 TESLA_ERR octetEVPread(octet_stream *, EVP_MD_CTX *, EVP_PKEY *, int16);
-TESLA_ERR octetEVPSign(
-    octet_stream *str, EVP_MD_CTX *ctx, EVP_PKEY *pkey, int16 slen);
+TESLA_ERR
+octetEVPSign(octet_stream *str, EVP_MD_CTX *ctx, EVP_PKEY *pkey, int16 slen);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-
-

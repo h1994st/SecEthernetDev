@@ -16,9 +16,7 @@
 #include <cstdint>
 #include <cstdlib>
 
-
-class TESLATest : public ::testing::Test {
-};
+class TESLATest : public ::testing::Test {};
 
 TEST_F(TESLATest, TestTESLA) {
   char buff[1024];
@@ -62,7 +60,7 @@ TEST_F(TESLATest, TestTESLA) {
   EXPECT_NE(pkey, nullptr);
   EXPECT_NE(pubkey, nullptr);
 
-  rc = sender_init(&server, &tint, 4, 2500, (void *)rand);
+  rc = sender_init(&server, &tint, 4, 2500, (void *) rand);
   EXPECT_EQ(rc, TESLA_OK);
   sender_start(&server);
   client_alloc(&client);

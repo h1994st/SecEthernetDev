@@ -32,3 +32,11 @@ add_subdirectory(tesla_can_udp)
 # Testing
 enable_testing()
 add_subdirectory(tests)
+
+  # Valgrind
+  add_custom_target(test_memcheck
+    COMMAND ${CMAKE_CTEST_COMMAND} --force-new-ctest-process --test-action memcheck
+    # Throw an error while finding any non-empty memory check reports
+    # - `find` always returns zero, even if it does not find anything
+    # - `grep .` will return non-zero, if no memory leaks are found
+    COMMAND find "${CMAKE_BINARY_DIR}/Testing/Temporary" -name "MemoryChecker.*.log" -not -empty -exec cat {} + | grep . || exit 0 && exit 2)
