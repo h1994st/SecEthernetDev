@@ -25,7 +25,7 @@ int sockfd = -1;
 tesla_client_session receiver;
 TESLA_ERR rc = TESLA_OK;
 EVP_PKEY *pubkey = NULL;
-FILE *pfile = NULL;
+WOLFSSL_BIO *bio = NULL;
 int64_t rnonce;
 char *data = NULL;
 int peerfd = -1;
@@ -34,7 +34,7 @@ void signal_handler(int signum) {
   // close socket
   if (sockfd != -1) close(sockfd);
   if (peerfd != -1) close(peerfd);
-  if (pfile != NULL) fclose(pfile);
+  if (bio != NULL) wolfSSL_BIO_free(bio);
   if (pubkey != NULL) EVP_PKEY_free(pubkey);
   if (data != NULL) free(data);
 
@@ -62,20 +62,20 @@ int main(int argc, char *argv[]) {
     ret = EXIT_FAILURE;
     goto out;
   }
-  pfile = fopen(argv[1], "rb");
-  if (!pfile) {
-    perror("fopen failed");
+  bio = wolfSSL_BIO_new_file(argv[1], "rb");
+  if (!bio) {
+    perror("wolfSSL_BIO_new_file failed");
     ret = EXIT_FAILURE;
     goto out;
   }
-  pubkey = PEM_read_PUBKEY(pfile, NULL, NULL, NULL);
+  pubkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
   if (!pubkey) {
     fprintf(stderr, "cannot read the public key\n");
     ret = EXIT_FAILURE;
     goto out;
   }
-  fclose(pfile);
-  pfile = NULL;
+  wolfSSL_BIO_free(bio);
+  bio = NULL;
 
   client_alloc(&receiver);
   client_set_pkey(&receiver, pubkey);
@@ -300,8 +300,8 @@ out:
     free(data);
   if (pubkey != NULL)
     EVP_PKEY_free(pubkey);
-  if (pfile != NULL)
-    fclose(pfile);
+  if (bio != NULL)
+    wolfSSL_BIO_free(bio);
   if (sockfd != -1)
     close(sockfd);
   return ret;

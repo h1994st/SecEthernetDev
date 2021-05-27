@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
   tesla_sender_session sender;
   NTP_t T_int;
   TESLA_ERR rc;
-  FILE *pfile = NULL; // -f private_key_file
+  WOLFSSL_BIO *bio = NULL; // -f private_key_file
   EVP_PKEY *pkey = NULL;
   char *data = NULL;
   int mysockfd = -1;
@@ -108,9 +108,9 @@ int main(int argc, char *argv[]) {
         break;
       }
       case 'f': {
-        pfile = fopen(optarg, "rb");
-        if (!pfile) {
-          perror("fopen failed");
+        bio = wolfSSL_BIO_new_file(optarg, "rb");
+        if (!bio) {
+          perror("wolfSSL_BIO_new_file failed");
           ret = EXIT_FAILURE;
           goto out;
         }
@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
   }
 
   // TESLA
-  if (!pfile) {
+  if (!bio) {
     fprintf(stderr, "must provide the private key file!\n");
     ret = EXIT_FAILURE;
     goto out;
@@ -135,14 +135,14 @@ int main(int argc, char *argv[]) {
   OpenSSL_add_all_ciphers();
   OpenSSL_add_all_digests();
 
-  pkey = PEM_read_PrivateKey(pfile, NULL, NULL, NULL);
+  pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
   if (!pkey) {
     fprintf(stderr, "cannot read the private key\n");
     ret = EXIT_FAILURE;
     goto out;
   }
-  fclose(pfile);
-  pfile = NULL;
+  wolfSSL_BIO_free(bio);
+  bio = NULL;
 
   T_int = NTP_fromMillis(T_INT);
   data = malloc(DEFAULT_KEYL);
@@ -405,8 +405,8 @@ out:
     EVP_PKEY_free(pkey);
   if (data != NULL)
     free(data);
-  if (pfile != NULL)
-    fclose(pfile);
+  if (bio != NULL)
+    wolfSSL_BIO_free(bio);
   if (mysockfd != -1)
     close(mysockfd);
   if (sockfd != -1)
