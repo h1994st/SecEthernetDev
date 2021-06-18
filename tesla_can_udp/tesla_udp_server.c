@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
   int ret = EXIT_SUCCESS;
   struct timespec now = {-1, -1};
   struct sockaddr_in servaddr, cliaddr;
+  char client_ip[16]; // at most: xxx.xxx.xxx.xxx\0
 
   // register handler
   signal(SIGINT, signal_handler);
@@ -57,11 +58,13 @@ int main(int argc, char *argv[]) {
   OpenSSL_add_all_ciphers();
   OpenSSL_add_all_digests();
 
-  if (argc < 2) {
+  if (argc < 3) {
     fprintf(stderr, "not enough arguments\n");
     ret = EXIT_FAILURE;
     goto out;
   }
+
+  // certificate
   bio = wolfSSL_BIO_new_file(argv[1], "rb");
   if (!bio) {
     perror("wolfSSL_BIO_new_file failed");
@@ -76,6 +79,10 @@ int main(int argc, char *argv[]) {
   }
   wolfSSL_BIO_free(bio);
   bio = NULL;
+
+  // client IP
+  memcpy(client_ip, argv[2], MIN(strlen(argv[2]), 15) + 1);
+  client_ip[15] = '\0';
 
   client_alloc(&receiver);
   client_set_pkey(&receiver, pubkey);
@@ -102,7 +109,9 @@ int main(int argc, char *argv[]) {
   cliaddr.sin_family = AF_INET;
   cliaddr.sin_port = htons(SENDER_PORT);
 //  cliaddr.sin_addr.s_addr = INADDR_LOOPBACK;
-  cliaddr.sin_addr.s_addr = inet_addr("172.50.1.2"); // TODO: use argument
+//  cliaddr.sin_addr.s_addr = inet_addr("172.50.1.2");
+  cliaddr.sin_addr.s_addr = inet_addr(client_ip);
+  printf("connect %s:%d\n", client_ip, SENDER_PORT);
   if (connect(peerfd, (struct sockaddr *) &cliaddr, sizeof(cliaddr)) < 0) {
     perror("socket connect failed");
     ret = EXIT_FAILURE;
