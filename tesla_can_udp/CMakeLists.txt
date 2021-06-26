@@ -1,4 +1,4 @@
-include_directories(${OPENSSL_INCLUDE_DIR})
+include_directories(${WOLFSSL_INCLUDE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/tesla)
 
 add_executable(tesla_udp_client tesla_udp_client.c)

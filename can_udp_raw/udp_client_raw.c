@@ -16,8 +16,11 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include <pcap/pcap.h>
+
+#include "gk_crypto.h"
 
 #define PORT 8080
 #define MAXLINE 1024
@@ -213,6 +216,10 @@ int main(int argc, char *argv[]) {
     udph->source = htons(8080);
     udph->dest = htons(8080);
 
+    // counter
+    uint32_t con = 0;
+    ssize_t len, n;
+
     while ((p = pcap_next(handle, &header))) {
       if (start.tv_nsec == -1) {
         if (clock_gettime(CLOCK_MONOTONIC, &start) == -1) {
@@ -263,18 +270,28 @@ int main(int argc, char *argv[]) {
         }
       }
 
-      ssize_t len = sizeof(struct can_frame) - CAN_MAX_DLEN
+      len = sizeof(struct can_frame) - CAN_MAX_DLEN
           + can->can_dlc;  // can frame length
-      ssize_t n;
       memcpy(payload, p, len);
+      memcpy(payload + len, &con, sizeof(con)); // append the counter to the end of the udp payload
+      len += sizeof(con);
+
+      // adjust length fields
       iph->ip_len = htons(sizeof(struct ip) + sizeof(struct udphdr) + len);
       udph->len = htons(sizeof(struct udphdr) + len);
+
+      // calculate IP checksum
       iph->ip_sum = 0; // reset to zero
       iph->ip_sum =
           csum((unsigned short *) iph, 4 * iph->ip_hl);  // fill ip checksum
       udph->check = 0;  // not used
       len += sizeof(struct ether_header) + sizeof(struct ip)
-          + sizeof(struct udphdr);  // total buffer length
+          + sizeof(struct udphdr);  // adjust to total buffer length
+
+      // calculate MAC over the whole Ethernet frame
+      gk_hmac_sha256(data, len, data + len, GK_SENDER_KEY);
+      len += GK_MAC_LEN;
+      assert(len <= sizeof(data));
 
       // record the sending time
       if (clock_gettime(CLOCK_MONOTONIC, &now) == -1) {
@@ -284,7 +301,7 @@ int main(int argc, char *argv[]) {
         goto out;
       }
       printf(
-          "%lld.%.9ld: %ld bytes\n", (long long) now.tv_sec, now.tv_nsec, len);
+          "%lld.%.9ld: %u : %ld bytes\n", (long long) now.tv_sec, now.tv_nsec, con, len);
 
       n = sendto(
           sockfd, data, len, 0, (const struct sockaddr *) &servaddr,
@@ -295,6 +312,8 @@ int main(int argc, char *argv[]) {
         pcap_close(handle);
         goto out;
       }
+
+      ++con;
     }
 
     pcap_close(handle);
