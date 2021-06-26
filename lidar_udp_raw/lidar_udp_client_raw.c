@@ -1,6 +1,5 @@
 // Client side implementation of UDP client-server model
 #include <arpa/inet.h>
-#include <linux/can.h>
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
 #include <net/ethernet.h>
@@ -30,11 +29,8 @@
 
 #define NANOSECONDS_PER_SECOND 1000000000L
 
-static uint8_t data[256];
+static uint8_t data[1400];
 
-/*
-	Generic checksum calculation function
-*/
 unsigned short csum(unsigned short *ptr, int nbytes) {
   register long sum;
   unsigned short oddbyte;
@@ -64,10 +60,10 @@ int main(int argc, char *argv[]) {
   int ifindex = 0;  // -i iface
   char ifname[IF_NAMESIZE];
   size_t ifname_len;
-  int broadcast = 0;   // -b
-  int interval = 100;  // -c millisec, default: 100 ms
-  double speed = 1;    // -s speed
-  int repeat = 1;      // -r repeat
+  int broadcast = 0;  // -b
+  int interval = -1;  // -c millisec, default: -1 (use original timing in pcap)
+  double speed = 1;   // -s speed
+  int repeat = 1;     // -r repeat
 
   int sockfd;
   struct sockaddr_ll servaddr;
@@ -190,7 +186,6 @@ int main(int argc, char *argv[]) {
 
     struct pcap_pkthdr header;
     const u_char *p;
-    struct can_frame *can;
     struct ether_header *eth = (struct ether_header *) data;
     struct ip *iph = (struct ip *) (data + sizeof(struct ether_header));
     struct udphdr *udph =
@@ -232,15 +227,31 @@ int main(int argc, char *argv[]) {
         // ???: do we need to convert this, as we use PCAP_TSTAMP_PRECISION_NANO
         pcap_start.tv_nsec = header.ts.tv_usec;
       }
+      if (header.len != header.caplen) {
+        fprintf(stderr, "incomplete pcaket! skip.\n");
+        continue;
+      }
+      const struct ether_header *p_eth = (const struct ether_header *) p;
 
-      // skip the first 16 bytes, Linux cooked capture v1 header
-      // https://wiki.wireshark.org/SLL
-      p += 16;
-      can = (struct can_frame *) p;
+      // jump over and ignore vlan tags
+      while (ntohs(p_eth->ether_type) == ETHERTYPE_VLAN) {
+        p += 4;
+        p_eth = (const struct ether_header *) p;
+      }
+      if (ntohs(p_eth->ether_type) != ETHERTYPE_IP) { continue; }
+      const struct ip *ip =
+          (const struct ip *) (p + sizeof(struct ether_header));
+      if (ip->ip_v != 4) { continue; }
+      if (ip->ip_p != IPPROTO_UDP) {
+        fprintf(stderr, "ignore non-UDP packet!\n");
+        continue;
+      }
+      const struct udphdr *udp =
+          (const struct udphdr
+               *) (p + sizeof(struct ether_header) + ip->ip_hl * 4);
 
-      len = sizeof(struct can_frame) - CAN_MAX_DLEN
-          + can->can_dlc;  // can frame length
-      memcpy(payload, p, len);
+      len = ntohs(udp->len) - 8; // udp payload length
+      memcpy(payload, p + sizeof(struct ether_header) + ip->ip_hl * 4 + 8, len);
       memcpy(payload + len, &con, sizeof(con)); // append the counter to the end of the udp payload
       len += sizeof(con);
 
@@ -265,6 +276,16 @@ int main(int argc, char *argv[]) {
         // Use constant packet rate
         deadline.tv_sec += interval / 1000L;
         deadline.tv_nsec += (interval * 1000000L) % NANOSECONDS_PER_SECOND;
+      } else {
+        // Next packet deadline = start + (packet ts - first packet ts) * speed
+        int64_t delta =
+            (header.ts.tv_sec - pcap_start.tv_sec) * NANOSECONDS_PER_SECOND
+            + (header.ts.tv_usec
+               - pcap_start.tv_nsec);  // Note PCAP_TSTAMP_PRECISION_NANO
+        if (speed != 1.0) { delta *= speed; }
+        deadline = start;
+        deadline.tv_sec += delta / NANOSECONDS_PER_SECOND;
+        deadline.tv_nsec += delta % NANOSECONDS_PER_SECOND;
       }
 
       if (deadline.tv_nsec > NANOSECONDS_PER_SECOND) {
