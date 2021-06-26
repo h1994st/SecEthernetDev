@@ -1,0 +1,5 @@
+add_executable(lidar_udp_client lidar_udp_client.c)
+target_link_libraries(lidar_udp_client pcap)
+
+add_executable(lidar_udp_server lidar_udp_server.c)
+target_link_libraries(lidar_udp_server pcap)

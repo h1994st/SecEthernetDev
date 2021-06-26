@@ -23,11 +23,20 @@ message("WolfSSL libs: ${WOLFSSL_LIBRARY}")
 # CAN over UDP
 add_subdirectory(can_udp)
 
+# CAN over UDP + GK sender/receiver + raw socket
+add_subdirectory(can_udp_raw)
+
 # TESLA
 add_subdirectory(tesla)
 
 # TESLA: CAN over UDP
 add_subdirectory(tesla_can_udp)
+
+# LiDAR UDP replay
+add_subdirectory(lidar_udp)
+
+# TESLA LiDAR UDP replay
+add_subdirectory(tesla_lidar_udp)
 
 # Testing
 enable_testing()
