@@ -15,6 +15,9 @@
 #define PORT    8080
 #define MAXLINE 1024
 
+// the functionality of replaying pcap files is borrowed from
+// https://github.com/rigtorp/udpreplay/blob/master/src/udpreplay.cpp
+
 #define NANOSECONDS_PER_SECOND 1000000000L
 
 // Driver code
