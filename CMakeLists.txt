@@ -4,9 +4,9 @@ project(SecEthernetDev)
 # Undocumented options
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
-if ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
     message(FATAL_ERROR "In-source builds are not allowed.")
-endif ()
+endif()
 
 # CMake modules
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -45,8 +45,8 @@ add_subdirectory(tesla_lidar_udp)
 enable_testing()
 add_subdirectory(tests)
 
-  # Valgrind
-  add_custom_target(test_memcheck
+# Valgrind
+add_custom_target(test_memcheck
     COMMAND ${CMAKE_CTEST_COMMAND} --force-new-ctest-process --test-action memcheck
     # Throw an error while finding any non-empty memory check reports
     # - `find` always returns zero, even if it does not find anything
