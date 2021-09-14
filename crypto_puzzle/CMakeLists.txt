@@ -1,0 +1,2 @@
+add_executable(bench_crypto_puzzle bench_crypto_puzzle.c)
+target_link_libraries(bench_crypto_puzzle ${WOLFSSL_LIBRARY})

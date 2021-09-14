@@ -41,6 +41,9 @@ add_subdirectory(tesla_can_udp)
 # TESLA LiDAR UDP replay
 add_subdirectory(tesla_lidar_udp)
 
+# Crypto puzzle
+add_subdirectory(crypto_puzzle)
+
 # Testing
 enable_testing()
 add_subdirectory(tests)
