@@ -11,13 +11,31 @@
 // For SHA256, the size of the hash value is 32 bytes
 #define MAX_HASH_LEN 32
 
+#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY(byte)  \
+  (byte & 0x80 ? '1' : '0'), \
+  (byte & 0x40 ? '1' : '0'), \
+  (byte & 0x20 ? '1' : '0'), \
+  (byte & 0x10 ? '1' : '0'), \
+  (byte & 0x08 ? '1' : '0'), \
+  (byte & 0x04 ? '1' : '0'), \
+  (byte & 0x02 ? '1' : '0'), \
+  (byte & 0x01 ? '1' : '0')
+
 static Sha256 hash;
 static uint8_t output[WC_SHA256_DIGEST_SIZE];
 
-double time_diff(struct timespec begin, struct timespec end) {
+static double time_diff(struct timespec begin, struct timespec end) {
   double begin_sec = (double) (begin.tv_sec + begin.tv_nsec * 1.0e-9);
   double end_sec = (double) (end.tv_sec + end.tv_nsec * 1.0e-9);
   return end_sec - begin_sec;
+}
+
+static void print_binary_format(uint8_t data[WC_SHA256_DIGEST_SIZE]) {
+  for (int i = 0; i < WC_SHA256_DIGEST_SIZE; ++i) {
+    printf(BYTE_TO_BINARY_PATTERN" ", BYTE_TO_BINARY(data[i]));
+  }
+  printf("\n");
 }
 
 uint64_t solve(int k, uint8_t mask[WC_SHA256_DIGEST_SIZE]) {
@@ -54,6 +72,9 @@ uint64_t solve(int k, uint8_t mask[WC_SHA256_DIGEST_SIZE]) {
   }
   clock_gettime(CLOCK_MONOTONIC, &end);
   printf("%.9f s\n", time_diff(begin, end));
+
+//  print_binary_format(mask);
+//  print_binary_format(output);
 
   return solution;
 }
