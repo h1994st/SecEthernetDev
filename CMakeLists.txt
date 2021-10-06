@@ -11,6 +11,7 @@ endif ()
 # CMake modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(CTest)
+include(GoogleBenchmark)
 
 # Language standard
 set(CMAKE_C_STANDARD 11)
