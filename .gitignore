@@ -1,5 +1,6 @@
 # -- by h1994st
 build/
+Kbuild
 
 # Linux' top-lvel .gitignore
 .*
