@@ -12,7 +12,8 @@ endif ()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(CTest)
 
-# C++ language standard
+# Language standard
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 14)
 
 # Linux Kernel Module (LKM)
