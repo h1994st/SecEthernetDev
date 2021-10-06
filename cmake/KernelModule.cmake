@@ -33,28 +33,34 @@ function(add_kernel_module)
   # Prepare the absolute path to byproducts
   list(TRANSFORM LKM_TARGET_SRCS
     # Remove file extensions
-    REPLACE \.c$ ""
+    REPLACE "\\.c$" ""
     OUTPUT_VARIABLE _src_names)
   set(_all_src_names ${_src_names})
   list(APPEND _all_src_names "${LKM_TARGET_NAME}" "${LKM_TARGET_NAME}.mod")
+  # object files
   list(TRANSFORM _all_src_names
     APPEND ".o"
     OUTPUT_VARIABLE _byproducts_o)
+  # .cmd files
   list(TRANSFORM _byproducts_o
     APPEND ".cmd"
     OUTPUT_VARIABLE _byproducts_cmd)
+  # .cmd files are hidden
   list(TRANSFORM _byproducts_cmd
     PREPEND "."
     OUTPUT_VARIABLE _byproducts_cmd)
+  # Merge object files and .cmd files
   set(_byproducts ${_byproducts_o})
   list(APPEND _byproducts ${_byproducts_cmd})
+  # Add other generated files
   list(APPEND _byproducts ".${LKM_TARGET_NAME}.ko.cmd" ".${LKM_TARGET_NAME}.mod.cmd")
   list(APPEND _byproducts "${LKM_TARGET_NAME}.mod" "${LKM_TARGET_NAME}.mod.c")
   list(APPEND _byproducts "Module.symvers" "modules.order")
+  # Add path prefix
   list(TRANSFORM _byproducts
     PREPEND "${CMAKE_CURRENT_BINARY_DIR}/"
     OUTPUT_VARIABLE LKM_TARGET_BYPRODUCTS)
-  # The Kbuild file is temporary
+  # The Kbuild file is also a byproduct
   list(APPEND LKM_TARGET_BYPRODUCTS "${CMAKE_CURRENT_SOURCE_DIR}/Kbuild")
 
   set(KBUILD_CMD $(MAKE) -C ${LKM_DIR} modules M=${CMAKE_CURRENT_BINARY_DIR} src=${CMAKE_CURRENT_SOURCE_DIR})
