@@ -16,11 +16,9 @@ include(CTest)
 set(CMAKE_CXX_STANDARD 14)
 
 # Linux Kernel Module (LKM)
-if (NOT LKM_DIR)
-  find_package(LKM REQUIRED)
-  message(STATUS "Kernel release: ${LKM_RELEASE}")
-  message(STATUS "Kernel headers: ${LKM_INCLUDE_DIR}")
-endif ()
+find_package(LKM REQUIRED)
+message(STATUS "Kernel release: ${LKM_RELEASE}")
+message(STATUS "Kernel headers: ${LKM_INCLUDE_DIRS}")
 include(KernelModule)
 
 # wolfSSL

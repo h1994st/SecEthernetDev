@@ -10,7 +10,11 @@ add_kernel_module(NAME name
 # - Support debug mode
 
 if (NOT LKM_DIR)
-  message(FATAL_ERROR "Please set up LKM_DIR to the Linux Kernel header directory!")
+  message(FATAL_ERROR "Please set up LKM_DIR to the Linux Kernel header source directory!")
+endif ()
+
+if (NOT LKM_INCLUDE_DIRS)
+  message(FATAL_ERROR "Please set up LKM_INCLUDE_DIRS to the Linux Kernel header directories!")
 endif ()
 
 function(add_kernel_module)
@@ -88,4 +92,23 @@ function(add_kernel_module)
     DEPENDS ${LKM_TARGET_SRC_PATHS}
     BYPRODUCTS ${LKM_TARGET_BYPRODUCTS}
     COMMENT "Building ${LKM_FILE}")
+
+  # Add a dummy target for CLion IDE
+  set(LKM_DUMMY_TARGET ${LKM_TARGET_NAME}_dummy)
+  add_library(${LKM_DUMMY_TARGET}
+    ${LKM_TARGET_SRCS})
+  target_include_directories(${LKM_DUMMY_TARGET}
+    PRIVATE ${LKM_INCLUDE_DIRS})
+  target_compile_definitions(${LKM_DUMMY_TARGET}
+    # Find MODULE_LICENSE("GPL"), MODULE_AUTHOR() etc.
+    PRIVATE -D__KERNEL__
+    PRIVATE -DMODULE
+    # `netdev_dbg` depends on `KBUILD_MODNAME`
+    PRIVATE -DKBUILD_MODNAME="${LKM_TARGET_NAME}")
+  target_compile_options(${LKM_DUMMY_TARGET}
+    PRIVATE -include ${LKM_DIR}/include/linux/kconfig.h
+    PRIVATE -include ${LKM_DIR}/include/linux/compiler_types.h)
+  set_property(
+    TARGET ${LKM_DUMMY_TARGET}
+    PROPERTY C_STANDARD 90)
 endfunction()
