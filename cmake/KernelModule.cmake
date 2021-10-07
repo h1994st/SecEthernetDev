@@ -2,12 +2,16 @@ include(CMakeParseArguments)
 
 #[[
 add_kernel_module(NAME name
-                  SRCS source1 [source2 ...])
+                  SRCS source1 [source2 ...]
+                  MACROS macro1 [macro2 ...])
+
+e.g.,
+add_kernel_module(NAME foo
+                  SRCS bar.c
+                  MACROS DEBUG FOO=1 BAR="foo")
 ]]
 
-# TODO:
-# - Support user-defined envs
-# - Support debug mode
+# TODO: Support debug mode
 
 if (NOT LKM_DIR)
   message(FATAL_ERROR "Please set up LKM_DIR to the Linux Kernel header source directory!")
@@ -20,7 +24,7 @@ endif ()
 function(add_kernel_module)
   set(options)
   set(one_value_args NAME)
-  set(multi_value_args SRCS)
+  set(multi_value_args SRCS MACROS)
   cmake_parse_arguments(LKM_TARGET "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN})
   if (NOT LKM_TARGET_NAME)
     message(FATAL_ERROR "Target name is missing!")
@@ -28,6 +32,11 @@ function(add_kernel_module)
   if ("${LKM_TARGET_NAME}.c" IN_LIST LKM_TARGET_SRCS)
     message(FATAL_ERROR "The target name of the kernel module is the same as one of source files!")
   endif ()
+
+  list(TRANSFORM LKM_TARGET_MACROS
+    PREPEND "-D"
+    OUTPUT_VARIABLE _cflags)
+  string(REPLACE ";" " " _cflags_str "${_cflags}")
 
   # Prepare the absolute path to source files
   list(TRANSFORM LKM_TARGET_SRCS
@@ -67,7 +76,10 @@ function(add_kernel_module)
   # The Kbuild file is also a byproduct
   list(APPEND LKM_TARGET_BYPRODUCTS "${CMAKE_CURRENT_SOURCE_DIR}/Kbuild")
 
-  set(KBUILD_CMD $(MAKE) -C ${LKM_DIR} modules M=${CMAKE_CURRENT_BINARY_DIR} src=${CMAKE_CURRENT_SOURCE_DIR})
+  set(KBUILD_CMD
+    $(MAKE) -C ${LKM_DIR} modules
+    M=${CMAKE_CURRENT_BINARY_DIR} src=${CMAKE_CURRENT_SOURCE_DIR}
+    EXTRA_CFLAGS='${_cflags_str}')
   set(LKM_FILE ${LKM_TARGET_NAME}.ko)
   set(LKM_KBUILD_FILE ${LKM_TARGET_NAME}_Kbuild)
 
@@ -101,10 +113,10 @@ function(add_kernel_module)
     PRIVATE ${LKM_INCLUDE_DIRS})
   target_compile_definitions(${LKM_DUMMY_TARGET}
     # Find MODULE_LICENSE("GPL"), MODULE_AUTHOR() etc.
-    PRIVATE -D__KERNEL__
-    PRIVATE -DMODULE
+    PRIVATE __KERNEL__ MODULE
     # `netdev_dbg` depends on `KBUILD_MODNAME`
-    PRIVATE -DKBUILD_MODNAME="${LKM_TARGET_NAME}")
+    PRIVATE KBUILD_MODNAME="${LKM_TARGET_NAME}"
+    PRIVATE ${LKM_TARGET_MACROS})
   target_compile_options(${LKM_DUMMY_TARGET}
     PRIVATE -include ${LKM_DIR}/include/linux/kconfig.h
     PRIVATE -include ${LKM_DIR}/include/linux/compiler_types.h)
