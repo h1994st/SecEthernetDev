@@ -7,4 +7,4 @@
 
 #include "role.h"
 
-#endif //SECETHERNETDEV_AUTHENTICATOR_H
+#endif  //SECETHERNETDEV_AUTHENTICATOR_H
