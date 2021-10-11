@@ -302,21 +302,22 @@ void TimeLockPuzzle::decrypt(
     }
   }
 
-  // dec_key = (enc_key - b) % n
-  // tmp1 = enc_key - b
+  // dec_key = (enc_key_bn - b) % n
+  // tmp1 = enc_key_bn - b
   ret = BN_sub(tmp1, enc_key_bn, b);
   if (ret != WOLFSSL_SUCCESS) {
     std::cerr << "Failed to calculate `enc_key - b`" << std::endl;
     exit(EXIT_FAILURE);
   }
 
-  // dec_key = tmp1 % n
+  // dec_key_bn = tmp1 % n
   ret = BN_mod(dec_key_bn, tmp1, n, nullptr);
   if (ret != WOLFSSL_SUCCESS) {
     std::cerr << "Failed to calculate `tmp1 % n`" << std::endl;
     exit(EXIT_FAILURE);
   }
 
+  // Convert big number to binary
   dec_key_len = BN_num_bytes(dec_key_bn);
   dec_key = (uint8_t *) malloc(dec_key_len * sizeof(uint8_t));
   if (dec_key == nullptr) {

@@ -20,19 +20,28 @@ set(MPI_SRCS
   mpi/mpih-div.c
   mpi/mpih-mul.c)
 
+# Force CMake to create `mpi` library
 add_subdirectory(mpi)
+
+set(TIME_LOCK_PUZZLE_SRCS
+  time_lock_puzzle.c)
+
+set(COMMON_SRCS
+  mitm.c role.c
+  ${MPI_SRCS}
+  ${TIME_LOCK_PUZZLE_SRCS})
 
 add_kernel_module(
   NAME mitm_snd
-  SRCS mitm.c role.c sender.c
+  SRCS ${COMMON_SRCS} sender.c
   MACROS MITM_ROLE=0)
 
 add_kernel_module(
   NAME mitm_recv
-  SRCS mitm.c role.c receiver.c
+  SRCS ${COMMON_SRCS} receiver.c
   MACROS MITM_ROLE=1)
 
 add_kernel_module(
   NAME mitm_auth
-  SRCS mitm.c role.c authenticator.c ${MPI_SRCS}
+  SRCS ${COMMON_SRCS} authenticator.c
   MACROS MITM_ROLE=2)
