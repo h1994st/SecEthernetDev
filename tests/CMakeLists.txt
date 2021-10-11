@@ -52,3 +52,15 @@ add_test(
   NAME test_tesla
   COMMAND test_tesla
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+# Time-lock Puzzle Test
+add_executable(test_time_lock_puzzle test_time_lock_puzzle.cpp)
+target_include_directories(test_time_lock_puzzle
+  PRIVATE ${CMAKE_SOURCE_DIR}/crypto_puzzle)
+target_link_libraries(test_time_lock_puzzle
+  PRIVATE gtest_main
+  PRIVATE time_lock_puzzle)
+add_test(
+  NAME test_time_lock_puzzle
+  COMMAND test_time_lock_puzzle
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

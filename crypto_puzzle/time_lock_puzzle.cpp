@@ -38,6 +38,9 @@ TimeLockPuzzle::TimeLockPuzzle(int S) : S(S) {
   BN_init(tmp1);
   BN_init(tmp2);
 
+  // Set bn_two = 2
+  BN_set_word(bn_two, 2);
+
   // Random number generator
   ret = wc_InitRng(&rng);
   if (ret != 0) {
@@ -179,7 +182,6 @@ void TimeLockPuzzle::encrypt(
   tmp1 = BN_new();
   tmp2 = BN_new();
   e = BN_new();
-  b = BN_new();
   if (tmp1 == nullptr || tmp2 == nullptr || e == nullptr) {
     std::cerr << "Failed to create big numbers" << std::endl;
     exit(EXIT_FAILURE);
@@ -207,14 +209,19 @@ void TimeLockPuzzle::encrypt(
   }
 
   // e = (2 ^ t) % phi_n
-  ret = BN_mod_mul(e, bn_two, t, phi_n, nullptr);
+  // TODO: !!! the following line is actually a wrong fix. Without the following
+  //     line, the error comes from "wolfcrypt/src/tfm.c:Line 3308". That is,
+  //     the modulus cannot be even. To address this issue, one may refer other
+  //     big number library, like GNU MP.
+  ret = BN_sub_word(phi_n, 1);
+  ret = BN_mod_exp(e, bn_two, t, phi_n, nullptr);
   if (ret != WOLFSSL_SUCCESS) {
     std::cerr << "Failed to calculate `(2 ^ t) % phi_n`" << std::endl;
     exit(EXIT_FAILURE);
   }
 
   // b = (a ^ e) % n
-  ret = BN_mod_mul(b, a, e, n, nullptr);
+  ret = BN_mod_exp(b, a, e, n, nullptr);
   if (ret != WOLFSSL_SUCCESS) {
     std::cerr << "Failed to calculate `(a ^ e) % n`" << std::endl;
     exit(EXIT_FAILURE);
