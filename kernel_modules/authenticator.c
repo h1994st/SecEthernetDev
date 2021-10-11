@@ -12,7 +12,10 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
+#include <linux/mpi.h>
 #include <linux/udp.h>
+
+#include "mpi/mpi.h"
 
 #if (MITM_ROLE != 2)
 #error "Wrong MITM_ROLE! Should be 2"

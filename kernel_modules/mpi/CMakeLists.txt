@@ -1,3 +1,4 @@
+# This CMakeLists.txt just forces CMake to create `mpi` directory
 set(MPI_SRCS
   mpi/mpiutil.c
   mpi/mpicoder.c
@@ -19,20 +20,3 @@ set(MPI_SRCS
   mpi/mpih-cmp.c
   mpi/mpih-div.c
   mpi/mpih-mul.c)
-
-add_subdirectory(mpi)
-
-add_kernel_module(
-  NAME mitm_snd
-  SRCS mitm.c role.c sender.c
-  MACROS MITM_ROLE=0)
-
-add_kernel_module(
-  NAME mitm_recv
-  SRCS mitm.c role.c receiver.c
-  MACROS MITM_ROLE=1)
-
-add_kernel_module(
-  NAME mitm_auth
-  SRCS mitm.c role.c authenticator.c ${MPI_SRCS}
-  MACROS MITM_ROLE=2)

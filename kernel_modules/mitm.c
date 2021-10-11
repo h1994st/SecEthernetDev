@@ -30,6 +30,8 @@
 #include "mitm.h"
 #include "role.h"
 
+#include "mpi/mpi.h"
+
 #define DRV_VERSION "0.01"
 #define DRV_RELDATE "2020-04-14"
 #define DRV_DESCRIPTION "Network driver Man-In-The-Middle'r"
@@ -712,6 +714,9 @@ int __init mitm_init_module(void) {
   struct crypto_shash *hash_tfm;
 #endif
 
+  /* Initialize MPI subsystem */
+  mpi_init();
+
   /* Allocate the devices */
   mitm_dev =
       alloc_netdev(sizeof(struct mitm), DRV_NAME, NET_NAME_UNKNOWN, mitm_setup);
@@ -859,6 +864,9 @@ void __exit mitm_exit_module(void) {
   rtnl_unlock();
 
   unregister_netdev(mitm_dev);
+
+  /* De-initialize MPI subsystem */
+  mpi_exit();
 
   pr_info("Exiting mitm module\n");
 }
