@@ -1,11 +1,17 @@
 #ifndef SECETHERNETDEV_TIME_LOCK_PUZZLE_H
 #define SECETHERNETDEV_TIME_LOCK_PUZZLE_H
 
+#include <crypto/aes.h>
 #include <linux/mpi.h>
 
 #include "mpi/mpi.h"
 
 struct time_lock_puzzle {
+  // AES key & iv
+  struct crypto_sync_skcipher *tfm;
+  uint8_t key[AES_KEYSIZE_128];
+  uint8_t iv[AES_BLOCK_SIZE];
+
   // Big numbers
   MPI p;
   MPI q;
