@@ -26,8 +26,11 @@ time_lock_puzzle *time_lock_puzzle_alloc(void) {
   }
 
   // Generate AES key and IV
-  get_random_bytes(puzzle->key, sizeof(puzzle->key));
-  get_random_bytes(puzzle->iv, sizeof(puzzle->iv));
+//  get_random_bytes(puzzle->key, sizeof(puzzle->key));
+//  get_random_bytes(puzzle->iv, sizeof(puzzle->iv));
+  // NOTE: for now, use hard-coded key and IV
+  memset(puzzle->key, 2, sizeof(puzzle->key));
+  memset(puzzle->iv, 3, sizeof(puzzle->iv));
 
   // Set AES key and IV
   ret = crypto_sync_skcipher_setkey(puzzle->tfm, puzzle->key, sizeof(puzzle->key));
