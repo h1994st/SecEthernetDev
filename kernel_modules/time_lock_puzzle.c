@@ -64,6 +64,7 @@ void time_lock_puzzle_free(time_lock_puzzle *puzzle) {
 void time_lock_puzzle_encrypt(
     time_lock_puzzle *puzzle, int T, uint8_t *msg, size_t msg_len,
     uint8_t *enc_msg, uint8_t *enc_key, size_t *enc_key_len) {
+  int ret;
   MPI tmp1;
   MPI tmp2;
   MPI e;
@@ -88,7 +89,14 @@ void time_lock_puzzle_encrypt(
   // Use `tmp1` to store `enc_key_bn`
   mpi_addm(tmp1, puzzle->key_bn, puzzle->b, puzzle->n);
 
-  // TODO: Convert big number to bytes
+  // Convert big number to bytes
+  *enc_key_len = mpi_get_size(tmp1);
+  ret = mpi_read_buffer(
+      tmp1, enc_key, *enc_key_len, (unsigned int *) enc_key_len, NULL);
+  if (ret != 0) {
+    pr_err("Cannot convert big number to bytes\n");
+    return;
+  }
 
   mpi_free(tmp1);
   mpi_free(tmp2);
@@ -98,6 +106,7 @@ void time_lock_puzzle_encrypt(
 void time_lock_puzzle_decrypt(
     time_lock_puzzle *puzzle, uint8_t *enc_msg, size_t enc_msg_len,
     uint8_t *enc_key, size_t enc_key_len, uint8_t *dec_msg) {
+  int ret;
   MPI tmp1;
   MPI enc_key_bn;
   MPI dec_key_bn;
@@ -110,7 +119,12 @@ void time_lock_puzzle_decrypt(
   dec_key_bn = mpi_new(0);
   bn_two = mpi_const(MPI_C_TWO);
 
-  // TODO: Convert encrypted key to a big number
+  // Convert encrypted key to a big number
+  enc_key_bn = mpi_read_raw_data(enc_key, enc_key_len);
+  if (enc_key_bn == NULL) {
+    pr_err("Cannot convert encrypted key to a big number\n");
+    return;
+  }
 
   // init: b = a % n
   mpi_mod(puzzle->b, puzzle->a, puzzle->n);
@@ -129,7 +143,12 @@ void time_lock_puzzle_decrypt(
   // dec_key_bn = tmp1 % n
   mpi_mod(dec_key_bn, tmp1, puzzle->n);
 
-  // TODO: Convert big number to binary
+  // Convert big number to binary
+  dec_key = mpi_get_buffer(dec_key_bn, (unsigned int *) &dec_key_len, NULL);
+  if (dec_key != NULL) {
+    pr_err("Cannot convert big number to bytes\n");
+    return;
+  }
 
   // TODO: Decrypt message
 
