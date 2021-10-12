@@ -155,5 +155,5 @@ void time_lock_puzzle_decrypt(
   mpi_free(enc_key_bn);
   mpi_free(dec_key_bn);
 
-  // kfree(dec_key);
+  kfree(dec_key);
 }
