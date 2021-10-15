@@ -90,17 +90,20 @@ TimeLockPuzzle::TimeLockPuzzle(int S) : S(S) {
   BN_CTX_init(bn_ctx);
 
   // Generate two random prime numbers
-  ret = BN_generate_prime_ex(p, 512, 0, nullptr, nullptr, nullptr);
-  if (ret != WOLFSSL_SUCCESS) {
-    std::cerr << "Failed to generate prime number" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-
-  ret = BN_generate_prime_ex(q, 512, 0, nullptr, nullptr, nullptr);
-  if (ret != WOLFSSL_SUCCESS) {
-    std::cerr << "Failed to generate prime number" << std::endl;
-    exit(EXIT_FAILURE);
-  }
+//  ret = BN_generate_prime_ex(p, 512, 0, nullptr, nullptr, nullptr);
+//  if (ret != WOLFSSL_SUCCESS) {
+//    std::cerr << "Failed to generate prime number" << std::endl;
+//    exit(EXIT_FAILURE);
+//  }
+//
+//  ret = BN_generate_prime_ex(q, 512, 0, nullptr, nullptr, nullptr);
+//  if (ret != WOLFSSL_SUCCESS) {
+//    std::cerr << "Failed to generate prime number" << std::endl;
+//    exit(EXIT_FAILURE);
+//  }
+  // NOTE: for now, just use hard-coded prime numbers
+  BN_set_word(p, 59833);
+  BN_set_word(q, 62549);
 
   // n = p * q
   ret = BN_mul(n, p, q, nullptr);
@@ -213,7 +216,9 @@ void TimeLockPuzzle::encrypt(
   //     line, the error comes from "wolfcrypt/src/tfm.c:Line 3308". That is,
   //     the modulus cannot be even. To address this issue, one may refer other
   //     big number library, like GNU MP.
-  ret = BN_sub_word(phi_n, 1);
+  if (BN_is_odd(phi_n) != WOLFSSL_SUCCESS) {
+    ret = BN_sub_word(phi_n, 1);
+  }
   ret = BN_mod_exp(e, bn_two, t, phi_n, nullptr);
   if (ret != WOLFSSL_SUCCESS) {
     std::cerr << "Failed to calculate `(2 ^ t) % phi_n`" << std::endl;
