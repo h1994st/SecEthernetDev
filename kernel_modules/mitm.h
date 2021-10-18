@@ -19,6 +19,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
 #include <linux/skbuff.h>
+#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/version.h>
 #include <net/sch_generic.h>
@@ -52,6 +53,10 @@ struct mitm {
 #endif
   struct net_device *dev;
   spinlock_t lock;
+
+#if MITM_ROLE == 2
+  struct timer_list net_monitor_timer;
+#endif
 
   enum mitm_handler_result (*handle_ingress)(
       struct mitm *mitm, struct sk_buff *skb);

@@ -12,7 +12,9 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
+#include <linux/jiffies.h>
 #include <linux/mpi.h>
+#include <linux/timer.h>
 #include <linux/udp.h>
 
 #include "mpi/mpi.h"
@@ -23,6 +25,26 @@
 
 u8 hmac_key[SHA256_DIGEST_SIZE] = {0x00};
 u8 proof_key[SHA256_DIGEST_SIZE] = {0x01};
+
+// 100 ms
+#define NET_MONITOR_DELAY 100
+
+/* Network monitor callback */
+static void net_monitor_cb(struct timer_list *timer) {
+  int err;
+  struct mitm *mitm = from_timer(mitm, timer, net_monitor_timer);
+  struct slave *slave = mitm_slave(mitm);
+  struct net_device *br_dev = slave->dev;
+  struct net_device *br_port_dev;
+
+  err = mod_timer(timer, jiffies + msecs_to_jiffies(NET_MONITOR_DELAY));
+  if (err) {
+    pr_err("Failed to set timer\n");
+    return;
+  }
+
+  // TODO: retrieve traffic stats
+}
 
 /* Taken out of net/bridge/br_forward.c */
 static int mitm_deliver_proof(
