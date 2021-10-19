@@ -13,6 +13,12 @@
 
 #define NUM_BR_NF_HOOKS 3
 extern struct nf_hook_ops br_debug_nf_ops[NUM_BR_NF_HOOKS];
-#endif
+#endif /* IS_ENABLED(CONFIG_BRIDGE_NETFILTER) */
+
+// 100 ms
+#define NET_MONITOR_DELAY 100
+
+// Timer callback function
+void net_monitor_cb(struct timer_list *timer);
 
 #endif  //SECETHERNETDEV_AUTHENTICATOR_H

@@ -26,11 +26,8 @@
 u8 hmac_key[SHA256_DIGEST_SIZE] = {0x00};
 u8 proof_key[SHA256_DIGEST_SIZE] = {0x01};
 
-// 100 ms
-#define NET_MONITOR_DELAY 100
-
 /* Network monitor callback */
-static void net_monitor_cb(struct timer_list *timer) {
+void net_monitor_cb(struct timer_list *timer) {
   int err;
   struct mitm *mitm = from_timer(mitm, timer, net_monitor_timer);
   struct slave *slave = mitm_slave(mitm);

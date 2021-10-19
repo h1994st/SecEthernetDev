@@ -700,6 +700,29 @@ static const struct file_operations slave_fops = {
     .write = debugfs_set_slave,
 };
 
+/*---------------------------- Timer init/fini ------------------------------*/
+static int net_monitor_init(struct mitm *mitm) {
+  int err;
+  struct timer_list *timer;
+
+  timer = &mitm->net_monitor_timer;
+  timer_setup(timer, net_monitor_cb, 0);
+  err = mod_timer(timer, jiffies + msecs_to_jiffies(NET_MONITOR_DELAY));
+  if (err) {
+    // failed to set timer
+    netdev_err(mitm->dev, "Failed to set timer\n");
+    return err;
+  }
+
+  netdev_info(mitm->dev, "Set timer: %d ms\n", NET_MONITOR_DELAY);
+  return 0;
+}
+
+static void net_monitor_exit(struct mitm *mitm) {
+  netdev_info(mitm->dev, "Delete network monitor timer\n");
+  del_timer(&mitm->net_monitor_timer);
+}
+
 /*---------------------------- Module init/fini -----------------------------*/
 static struct net_device *mitm_dev;
 
@@ -812,6 +835,15 @@ int __init mitm_init_module(void) {
   }
 #endif
 
+#if MITM_ROLE == 2
+  /* Initialize network monitor timer */
+  ret = net_monitor_init(mitm);
+  if (ret) {
+    // cannot initialize the timer and enable DoS protection
+    netdev_warn(mitm_dev, "net_monitor_init failed: err %d\n", ret);
+  }
+#endif
+
   netdev_info(
       mitm_dev, "Initialized module with interface %s\n", mitm_dev->name);
 
@@ -845,6 +877,12 @@ register_failed:
 
 void __exit mitm_exit_module(void) {
   struct mitm *mitm = netdev_priv(mitm_dev);
+
+#if MITM_ROLE == 2
+  /* Delete network monitor timer */
+  net_monitor_exit(mitm);
+#endif
+
   crypto_free_shash(mitm->hmac_shash);
 #if MITM_ROLE == 2
   crypto_free_shash(mitm->proof_shash);
