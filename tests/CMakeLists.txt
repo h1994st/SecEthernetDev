@@ -28,14 +28,15 @@ add_subdirectory(
   ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
   EXCLUDE_FROM_ALL)
 
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/common)
 include_directories(${WOLFSSL_INCLUDE_DIR})
 
 # wolfSSL Test
 add_executable(test_wolfssl test_wolfssl.cpp)
 target_link_libraries(test_wolfssl
   PRIVATE gtest_main
-  PRIVATE ${WOLFSSL_LIBRARY})
+  PRIVATE ${WOLFSSL_LIBRARY}
+  PRIVATE wolfssl_ext)
 add_test(
   NAME test_wolfssl
   COMMAND test_wolfssl

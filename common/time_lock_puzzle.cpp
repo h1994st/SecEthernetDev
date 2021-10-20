@@ -4,6 +4,8 @@
 #include <iostream>
 #include <string>
 
+#include "wolfssl_ext.h"
+
 TimeLockPuzzle::TimeLockPuzzle(int S) : S(S) {
   int ret;
   BIGNUM *tmp1;
@@ -300,18 +302,10 @@ void TimeLockPuzzle::decrypt(
     }
   }
 
-  // dec_key = (enc_key_bn - b) % n
-  // tmp1 = enc_key_bn - b
-  ret = BN_sub(tmp1, enc_key_bn, b);
+  // dec_key_bn = (enc_key_bn - b) % n
+  ret = BN_mod_sub(dec_key_bn, enc_key_bn, b, n, nullptr);
   if (ret != WOLFSSL_SUCCESS) {
-    std::cerr << "Failed to calculate `enc_key - b`" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-
-  // dec_key_bn = tmp1 % n
-  ret = BN_mod(dec_key_bn, tmp1, n, nullptr);
-  if (ret != WOLFSSL_SUCCESS) {
-    std::cerr << "Failed to calculate `tmp1 % n`" << std::endl;
+    std::cerr << "Failed to calculate `(enc_key_bn - b) % n`" << std::endl;
     exit(EXIT_FAILURE);
   }
 
