@@ -90,20 +90,20 @@ TimeLockPuzzle::TimeLockPuzzle(int S) : S(S) {
   BN_CTX_init(bn_ctx);
 
   // Generate two random prime numbers
-//  ret = BN_generate_prime_ex(p, 512, 0, nullptr, nullptr, nullptr);
-//  if (ret != WOLFSSL_SUCCESS) {
-//    std::cerr << "Failed to generate prime number" << std::endl;
-//    exit(EXIT_FAILURE);
-//  }
-//
-//  ret = BN_generate_prime_ex(q, 512, 0, nullptr, nullptr, nullptr);
-//  if (ret != WOLFSSL_SUCCESS) {
-//    std::cerr << "Failed to generate prime number" << std::endl;
-//    exit(EXIT_FAILURE);
-//  }
+  ret = BN_generate_prime_ex(p, 512, 0, nullptr, nullptr, nullptr);
+  if (ret != WOLFSSL_SUCCESS) {
+    std::cerr << "Failed to generate prime number" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  ret = BN_generate_prime_ex(q, 512, 0, nullptr, nullptr, nullptr);
+  if (ret != WOLFSSL_SUCCESS) {
+    std::cerr << "Failed to generate prime number" << std::endl;
+    exit(EXIT_FAILURE);
+  }
   // NOTE: for now, just use hard-coded prime numbers
-  BN_set_word(p, 59833);
-  BN_set_word(q, 62549);
+//  BN_set_word(p, 59833);
+//  BN_set_word(q, 62549);
 
   // n = p * q
   ret = BN_mul(n, p, q, nullptr);
@@ -324,7 +324,7 @@ void TimeLockPuzzle::decrypt(
 
   // Convert big number to binary
   dec_key_len = BN_num_bytes(dec_key_bn);
-  dec_key = (uint8_t *) malloc(dec_key_len * sizeof(uint8_t));
+  dec_key = (uint8_t *) calloc(AES_BLOCK_SIZE, sizeof(uint8_t));
   if (dec_key == nullptr) {
     std::cerr << "Failed to allocate memory" << std::endl;
     exit(EXIT_FAILURE);
@@ -332,7 +332,7 @@ void TimeLockPuzzle::decrypt(
   BN_bn2bin(dec_key_bn, dec_key);
 
   // Set decryption key
-  ret = wc_AesSetKey(&aes, dec_key, dec_key_len, iv, AES_DECRYPTION);
+  ret = wc_AesSetKey(&aes, dec_key, AES_BLOCK_SIZE, iv, AES_DECRYPTION);
   if (ret != 0) {
     std::cerr << "Failed to set AES key and IV" << std::endl;
     exit(EXIT_FAILURE);

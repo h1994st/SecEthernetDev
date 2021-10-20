@@ -6,7 +6,6 @@
 #include <wolfssl/openssl/bn.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/chacha.h>
 
 class TimeLockPuzzle {
   static constexpr int key_size = 16;
