@@ -212,13 +212,6 @@ void TimeLockPuzzle::encrypt(
   }
 
   // e = (2 ^ t) % phi_n
-  // TODO: !!! the following line is actually a wrong fix. Without the following
-  //     line, the error comes from "wolfcrypt/src/tfm.c:Line 3308". That is,
-  //     the modulus cannot be even. To address this issue, one may refer other
-  //     big number library, like GNU MP.
-  if (BN_is_odd(phi_n) != WOLFSSL_SUCCESS) {
-    ret = BN_sub_word(phi_n, 1);
-  }
   ret = BN_mod_exp(e, bn_two, t, phi_n, nullptr);
   if (ret != WOLFSSL_SUCCESS) {
     std::cerr << "Failed to calculate `(2 ^ t) % phi_n`" << std::endl;
