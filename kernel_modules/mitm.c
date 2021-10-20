@@ -703,8 +703,24 @@ static const struct file_operations slave_fops = {
 /*---------------------------- Timer init/fini ------------------------------*/
 static int net_monitor_init(struct mitm *mitm) {
   int err;
+  int i = 0;
+  struct slave *slave = mitm_slave(mitm);
+  struct net_device *br_dev = slave->dev;
+  struct net_device *br_port_dev;
+  struct list_head *iter;
+  struct rtnl_link_stats64 stats;
   struct timer_list *timer;
 
+  // initialize traffic stats
+  netdev_for_each_lower_dev(br_dev, br_port_dev, iter) {
+    dev_get_stats(br_port_dev, &stats);
+    dev_rx_bytes[i++] = stats.rx_bytes;
+    netdev_info(
+        mitm->dev, "Port (%s): %llu bytes\n", br_port_dev->name,
+        stats.rx_bytes);
+  }
+
+  // initialize the timer
   timer = &mitm->net_monitor_timer;
   timer_setup(timer, net_monitor_cb, 0);
   err = mod_timer(timer, jiffies + msecs_to_jiffies(NET_MONITOR_DELAY));

@@ -26,21 +26,39 @@
 u8 hmac_key[SHA256_DIGEST_SIZE] = {0x00};
 u8 proof_key[SHA256_DIGEST_SIZE] = {0x01};
 
+// store bytes received for every connected ports
+u64 dev_rx_bytes[NET_MONITOR_MAX_NUM] = {0x00};
+
 /* Network monitor callback */
 void net_monitor_cb(struct timer_list *timer) {
   int err;
+  int i = 0;
   struct mitm *mitm = from_timer(mitm, timer, net_monitor_timer);
   struct slave *slave = mitm_slave(mitm);
   struct net_device *br_dev = slave->dev;
   struct net_device *br_port_dev;
+  struct list_head *iter;
+  struct rtnl_link_stats64 stats;
+  u64 rx_bps;
 
   err = mod_timer(timer, jiffies + msecs_to_jiffies(NET_MONITOR_DELAY));
   if (err) {
-    pr_err("Failed to set timer\n");
+    netdev_err(mitm->dev, "Failed to set timer\n");
     return;
   }
 
-  // TODO: retrieve traffic stats
+  // retrieve traffic stats
+  netdev_for_each_lower_dev(br_dev, br_port_dev, iter) {
+    dev_get_stats(br_port_dev, &stats);
+
+    rx_bps = (stats.rx_bytes - dev_rx_bytes[i]) * 8 * 1000 / NET_MONITOR_DELAY;
+    netdev_info(
+        mitm->dev, "throughput (%s): %llu bps\n", br_port_dev->name, rx_bps);
+    // TODO: if `rx_bps` is greater than the expected throughput, the
+    //  authenticator will send a time-lock puzzle
+
+    dev_rx_bytes[i++] = stats.rx_bytes;
+  }
 }
 
 /* Taken out of net/bridge/br_forward.c */

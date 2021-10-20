@@ -36,6 +36,9 @@ message(STATUS "WolfSSL libs: ${WOLFSSL_LIBRARY}")
 # Gatekeeper Kernel Modules
 add_subdirectory(kernel_modules)
 
+# Common libraries for Gatekeeper sender/receiver
+add_subdirectory(common)
+
 # CAN over UDP
 add_subdirectory(can_udp)
 

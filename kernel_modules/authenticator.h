@@ -18,6 +18,9 @@ extern struct nf_hook_ops br_debug_nf_ops[NUM_BR_NF_HOOKS];
 // 100 ms
 #define NET_MONITOR_DELAY 100
 
+#define NET_MONITOR_MAX_NUM 8
+extern u64 dev_rx_bytes[NET_MONITOR_MAX_NUM];
+
 // Timer callback function
 void net_monitor_cb(struct timer_list *timer);
 
