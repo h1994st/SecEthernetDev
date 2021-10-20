@@ -448,6 +448,8 @@ uint64_t gk_solve_puzzle(struct time_lock_puzzle *puzzle, int *err) {
     }
   }
 
+  // TODO: better combine `BN_sub` and `BN_mod` together!! Otherwise, the
+  //  results seem wrong
   // dec_key = (enc_key_bn - b) % n
   // tmp1 = enc_key_bn - b
   ret = BN_sub(tmp1, enc_key_bn, b);

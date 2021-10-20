@@ -20,3 +20,8 @@ add_executable(bench_time_lock_puzzle_decryption bench_time_lock_puzzle_decrypti
 target_link_libraries(bench_time_lock_puzzle_decryption
   PRIVATE time_lock_puzzle
   PRIVATE benchmark::benchmark)
+
+add_executable(bench_gk_crypto bench_gk_crypto.cpp)
+target_link_libraries(bench_gk_crypto
+  PRIVATE gk_crypto
+  PRIVATE benchmark::benchmark)
