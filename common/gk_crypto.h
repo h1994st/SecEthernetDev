@@ -8,6 +8,7 @@
 extern "C" {
 #endif
 
+/* Gatekeeper crypto */
 enum key_type {
   GK_SENDER_KEY,
   GK_RECEIVER_KEY,
@@ -36,7 +37,9 @@ struct time_lock_puzzle {
   uint32_t t;
 
   // Ck
-  uint8_t Ck[GK_AES_KEY_SIZE];
+  // NOTE: although the AES key we use is 16 bytes, the encrypted key must align
+  //   with the size of `n` because of the modulo operation
+  uint8_t Ck[GK_PUZZLE_N_BYTES];
 
   // Cm
   uint8_t Cm[GK_AES_BLOCK_SIZE];

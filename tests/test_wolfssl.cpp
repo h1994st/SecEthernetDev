@@ -9,6 +9,31 @@
 #include <wolfssl/openssl/bn.h>
 #include <wolfssl/ssl.h>
 
+/* wolfSSL extension */
+static int wolfSSL_BN_mod_sub(
+    WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a, const WOLFSSL_BIGNUM *b,
+    const WOLFSSL_BIGNUM *m, WOLFSSL_BN_CTX *ctx) {
+  (void) ctx;
+  WOLFSSL_MSG("wolfSSL_BN_mod_sub");
+
+  if (r == NULL || r->internal == NULL || a == NULL || a->internal == NULL
+      || b == NULL || b->internal == NULL || m == NULL || m->internal == NULL) {
+    WOLFSSL_MSG("bn NULL error");
+    return WOLFSSL_FAILURE;
+  }
+
+  if (mp_submod(
+          (mp_int *) a->internal, (mp_int *) b->internal,
+          (mp_int *) m->internal, (mp_int *) r->internal)
+      != MP_OKAY) {
+    WOLFSSL_MSG("mp_submod error");
+    return WOLFSSL_FAILURE;
+  }
+
+  return WOLFSSL_SUCCESS;
+}
+#define BN_mod_sub wolfSSL_BN_mod_sub
+
 TEST(WolfSSLTest, TestKeyLoading) {
   auto bio = wolfSSL_BIO_new_file("data/privkey.pem", "rb");
   EXPECT_NE(bio, nullptr);
@@ -92,4 +117,44 @@ TEST(WolfSSLTest, TestBNModExp) {
   BN_clear_free(phi_n);
   BN_clear_free(tmp1);
   BN_clear_free(tmp2);
+}
+
+TEST(WolfSSLTest, TestBNModSub) {
+  int ret;
+  BIGNUM *a;
+  BIGNUM *b;
+  BIGNUM *r1;
+  BIGNUM *m;
+
+  a = BN_new();
+  b = BN_new();
+  r1 = BN_new();
+  m = BN_new();
+  ASSERT_NE(a, nullptr);
+  ASSERT_NE(b, nullptr);
+  ASSERT_NE(r1, nullptr);
+  ASSERT_NE(m, nullptr);
+
+  BN_init(a);
+  BN_init(b);
+  BN_init(r1);
+  BN_init(m);
+
+  // a > b
+  BN_set_word(a, 5);
+  BN_set_word(b, 3);
+  BN_set_word(m, 10);
+  ret = BN_mod_sub(r1, a, b, m, nullptr);
+  ASSERT_EQ(ret, WOLFSSL_SUCCESS);
+
+  // a < b
+  BN_set_word(a, 1);
+  BN_set_word(b, 7);
+  BN_set_word(m, 10);
+  ret = BN_mod_sub(r1, a, b, m, nullptr);
+
+  BN_clear_free(a);
+  BN_clear_free(b);
+  BN_clear_free(r1);
+  BN_clear_free(m);
 }

@@ -10,6 +10,33 @@
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/types.h>
 
+/* wolfSSL extension */
+static int wolfSSL_BN_mod_sub(
+    WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a, const WOLFSSL_BIGNUM *b,
+    const WOLFSSL_BIGNUM *m, WOLFSSL_BN_CTX *ctx) {
+  (void) ctx;
+  WOLFSSL_MSG("wolfSSL_BN_mod_sub");
+
+  if (r == NULL || r->internal == NULL || a == NULL || a->internal == NULL
+      || b == NULL || b->internal == NULL || m == NULL || m->internal == NULL) {
+    WOLFSSL_MSG("bn NULL error");
+    return WOLFSSL_FAILURE;
+  }
+
+  if (mp_submod(
+          (mp_int *) a->internal, (mp_int *) b->internal,
+          (mp_int *) m->internal, (mp_int *) r->internal)
+      != MP_OKAY) {
+    WOLFSSL_MSG("mp_submod error");
+    return WOLFSSL_FAILURE;
+  }
+
+  return WOLFSSL_SUCCESS;
+}
+#define BN_mod_sub wolfSSL_BN_mod_sub
+
+/* Gatekeeper crypto */
+
 /* sender */
 static byte sender_hmac_key[GK_MAC_LEN] = {0x00};
 /* receiver */
@@ -443,21 +470,10 @@ uint64_t gk_solve_puzzle(struct time_lock_puzzle *puzzle, int *err) {
     }
   }
 
-  // TODO: better combine `BN_sub` and `BN_mod` together!! Otherwise, the
-  //  results seem wrong
-  // dec_key = (enc_key_bn - b) % n
-  // tmp1 = enc_key_bn - b
-  ret = BN_sub(tmp1, enc_key_bn, b);
+  // dec_key_bn = (enc_key_bn - b) % n
+  ret = BN_mod_sub(dec_key_bn, enc_key_bn, b, n, NULL);
   if (ret != WOLFSSL_SUCCESS) {
-    // Failed to calculate `enc_key - b`
-    *err = -1;
-    goto failed;
-  }
-
-  // dec_key_bn = tmp1 % n
-  ret = BN_mod(dec_key_bn, tmp1, n, NULL);
-  if (ret != WOLFSSL_SUCCESS) {
-    // Failed to calculate `tmp1 % n`
+    // Failed to calculate `(enc_key_bn - b) % n`
     *err = -1;
     goto failed;
   }
