@@ -22,6 +22,6 @@ static void BM_TimeLockEncrypt(benchmark::State &state) {
         1, (uint8_t *) msg, sizeof(msg), enc_msg, enc_key, &enc_key_len);
   }
 }
-BENCHMARK(BM_TimeLockEncrypt);
+BENCHMARK(BM_TimeLockEncrypt)->DenseRange(100, 1000, 100);
 
 BENCHMARK_MAIN();

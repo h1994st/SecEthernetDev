@@ -44,6 +44,7 @@ int gk_crypto_init(void) {
 void gk_crypto_exit(void) {
   if (initialized == 0) return;
   wc_FreeRng(&gk_rng);
+  initialized = 0;
 }
 
 int gk_sha256(uint8_t *input, size_t input_size, uint8_t *output) {
@@ -87,6 +88,61 @@ int gk_hmac_sha256(
   if (ret != 0) { return ret; }
 
   return 0;
+}
+
+int gk_benchmark_puzzle(uint32_t iter) {
+  int ret;
+
+  BIGNUM *b;
+  BIGNUM *a;
+  BIGNUM *n;
+  BIGNUM *bn_two;
+
+  b = BN_new();
+  a = BN_new();
+  n = BN_new();
+  bn_two = BN_new();
+  if (b == NULL || a == NULL || n == NULL || bn_two == NULL) {
+    // Failed to create big numbers
+    ret = -1;
+    goto failed;
+  }
+  BN_init(b);
+  BN_init(a);
+  BN_init(n);
+  BN_init(bn_two);
+
+  BN_set_word(a, 2);
+  BN_set_word(n, 59833UL * 62549UL);
+  BN_set_word(bn_two, 2);
+
+  // init: b = a % n
+  ret = BN_mod(b, a, n, NULL);
+  if (ret != WOLFSSL_SUCCESS) {
+    // Failed to calculate `a % n`
+    ret = -1;
+    goto failed;
+  }
+
+  for (int i = 0; i < iter; ++i) {
+    // update b = (b ^ 2) % n
+    ret = BN_mod_exp(b, b, bn_two, n, NULL);
+    if (ret != WOLFSSL_SUCCESS) {
+      // Failed to calculate `(b ^ 2) % n`
+      ret = -1;
+      goto failed;
+    }
+  }
+
+  ret = 0;
+
+failed:
+  BN_clear_free(b);
+  BN_clear_free(a);
+  BN_clear_free(n);
+  BN_clear_free(bn_two);
+
+  return ret;
 }
 
 // Puzzle: n, t, Ck, Cm
@@ -323,12 +379,12 @@ int gk_generate_puzzle(
     goto failed;
   }
 
-  ret = BN_bn2bin(t, (uint8_t *) &puzzle_ex->puzzle.t);
-  if (ret == -1) {
-    // Failed to convert `t`
+  if (t->fp.used != 1) {
+    // `t` is too large
     ret = -1;
     goto failed;
   }
+  puzzle_ex->puzzle.t = BN_get_word(t);
 
   ret = BN_bn2bin(enc_key_bn, puzzle_ex->puzzle.Ck);
   if (ret == -1) {

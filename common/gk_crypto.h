@@ -34,7 +34,7 @@ struct time_lock_puzzle {
   // a = 2
 
   // t = T * S
-  uint32_t t;
+  uint64_t t;
 
   // Ck
   // NOTE: although the AES key we use is 16 bytes, the encrypted key must align
@@ -53,6 +53,8 @@ struct time_lock_puzzle_ex {
 
 int gk_crypto_init(void);
 void gk_crypto_exit(void);
+
+int gk_benchmark_puzzle(uint32_t t);
 
 // Inputs:
 // - T: solving time in ms

@@ -7,9 +7,11 @@ TEST(GkCryptoTest, TestTimeLockPuzzle) {
   uint64_t ans;
   time_lock_puzzle_ex puzzle_ex = {0x00};
 
+  std::cout << sizeof(puzzle_ex.puzzle) << std::endl;
+
   gk_crypto_init();
 
-  ret = gk_generate_puzzle(1000, 100, &puzzle_ex);
+  ret = gk_generate_puzzle(500, 100000, &puzzle_ex);
   EXPECT_EQ(ret, 0);
 
   ans = gk_solve_puzzle(&puzzle_ex.puzzle, &ret);
@@ -26,8 +28,8 @@ TEST(GkCryptoTest, TestTimeLockPuzzleGeneration) {
 
   gk_crypto_init();
 
-  for (uint32_t T = 500; T <= 3000; T += 500) {
-    ret = gk_generate_puzzle(T, 16771207, &puzzle_ex);
+  for (uint32_t T = 500; T <= 1000; T += 500) {
+    ret = gk_generate_puzzle(T, 285714286, &puzzle_ex);
     EXPECT_EQ(ret, 0);
   }
 
