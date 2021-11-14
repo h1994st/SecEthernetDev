@@ -29,6 +29,7 @@ u8 proof_key[SHA256_DIGEST_SIZE] = {0x01};
 // store bytes received for every connected ports
 u64 dev_rx_bytes[NET_MONITOR_MAX_NUM] = {0x00};
 
+#ifdef MITM_DOS_PROTECTION
 /* Network monitor callback */
 void net_monitor_cb(struct timer_list *timer) {
   int err;
@@ -60,6 +61,7 @@ void net_monitor_cb(struct timer_list *timer) {
     dev_rx_bytes[i++] = stats.rx_bytes;
   }
 }
+#endif /* MITM_DOS_PROTECTION */
 
 /* Taken out of net/bridge/br_forward.c */
 static int mitm_deliver_proof(

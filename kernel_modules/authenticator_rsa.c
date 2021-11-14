@@ -215,17 +215,17 @@ static int mitm_deliver_proof(
   }
 #endif /* MITM_AUTH_RSA */
 
-      netdev_info(
-              mitm->dev,
-              "skb len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
-              skb->len, skb->data_len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
-      netdev_info(
-              mitm->dev,
-              "dump output data, %u bytes\n",
-              skb->tail - skb->mac_header);
-      print_hex_dump(
-              KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
-              skb_mac_header(skb), skb->tail - skb->mac_header, true);
+//      netdev_info(
+//              mitm->dev,
+//              "skb len=%u data_len=%u headroom=%u head=%px data=%px, tail=%u, end=%u\n",
+//              skb->len, skb->data_len, skb_headroom(skb), skb->head, skb->data, skb->tail, skb->end);
+//      netdev_info(
+//              mitm->dev,
+//              "dump output data, %u bytes\n",
+//              skb->tail - skb->mac_header);
+//      print_hex_dump(
+//              KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
+//              skb_mac_header(skb), skb->tail - skb->mac_header, true);
 
   // send packet out
   //    netdev_info(mitm->dev, "send the proof packet to (%p)\n", to);
@@ -360,7 +360,6 @@ mitm_from_slave(struct mitm *mitm, struct sk_buff *skb) {
       hlen = LL_RESERVED_SPACE(src_dev);
       tlen = src_dev->needed_tailroom;
       //			netdev_info(mitm->dev, "before alloc_skb: %u bytes\n", plen + hlen + tlen);
-      netdev_info(mitm->dev, "plen: %u bytes\n", plen);
       skbn = alloc_skb(plen + hlen + tlen, GFP_ATOMIC);
       if (!skbn) {
         netdev_err(mitm->dev, "cannot allocate sk_buff for proof packets\n");
@@ -433,6 +432,7 @@ mitm_from_slave(struct mitm *mitm, struct sk_buff *skb) {
       crypto_init_wait(&wait);
       akcipher_request_set_callback(
           sig_req, CRYPTO_TFM_REQ_MAY_BACKLOG, crypto_req_done, &wait);
+      netdev_info(mitm->dev, "before crypto_akcipher_sign\n");
       ret = crypto_akcipher_sign(sig_req);
       netdev_info(mitm->dev, "crypto_akcipher_sign ret: %d\n", ret);
       ret = crypto_wait_req(ret, &wait);
@@ -443,6 +443,7 @@ mitm_from_slave(struct mitm *mitm, struct sk_buff *skb) {
         // cannot generate proof
         return MITM_DROP;
       }
+      netdev_info(mitm->dev, "crypto_akcipher_sign done\n");
 
       // copy results back
 //      memcpy(proof->pkt_hash, mitm->xbuf[0], sizeof(proof->pkt_hash));
