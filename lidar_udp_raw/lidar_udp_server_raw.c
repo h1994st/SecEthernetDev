@@ -93,6 +93,16 @@ int handle_proof_packets(uint8_t *data, size_t len) {
   //  }
   //  printf("\n");
 
+#ifdef GK_AUTH_RSA
+  // verify the digital signature
+  if (gk_rsa2048_verify(
+          proofh->pkt_hash, sizeof(proofh->pkt_hash), proofh->proof_sig,
+          sizeof(proofh->proof_sig))
+      != 0) {
+    fprintf(stderr, "gk_rsa2048_verify failed\n");
+    return 0;
+  }
+#else
   // calculate and verify the proof
   if (gk_hmac_sha256(
           entry->pkt_data, entry->pkt_len, proof_mac_buf, GK_RECEIVER_KEY)
@@ -113,6 +123,7 @@ int handle_proof_packets(uint8_t *data, size_t len) {
     fprintf(stderr, "wrong proof!\n");
     return 0;
   }
+#endif /* GK_AUTH_RSA */
 
   // remove the entry
   hashmap_delete(map, entry);
