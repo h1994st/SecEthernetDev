@@ -23,18 +23,13 @@
 #include "hashmap.h"
 
 #define PORT 8080
-#define MAXLINE 256
+#define MAXLINE 302
 
 int sockfd = -1;
 uint8_t buffer[MAXLINE];
 struct timespec now = {-1, -1};
 struct hashmap *map = NULL;
 uint8_t proof_mac_buf[GK_MAC_LEN];
-
-struct gk_proof_hdr {
-  uint8_t pkt_hash[GK_MAC_LEN];
-  uint8_t proof_hmac[GK_MAC_LEN];
-};
 
 struct map_entry {
   uint8_t pkt_hash[GK_MAC_LEN];
@@ -59,7 +54,7 @@ uint64_t user_hash(const void *item, uint64_t seed0, uint64_t seed1) {
   uint64_t h;
   memcpy(&h, p->pkt_hash, sizeof(h));
 
-//  printf("entry %p: %lu\n", p, h);
+  //  printf("entry %p: %lu\n", p, h);
 
   return h;
 }
@@ -81,9 +76,12 @@ int handle_proof_packets(uint8_t *data, size_t len) {
       (struct gk_proof_hdr *) (data + sizeof(struct ether_header));
   struct map_entry *entry = NULL;
 
-  assert(len == sizeof(struct ether_header) + sizeof(struct gk_proof_hdr));
+  if (len != sizeof(struct ether_header) + sizeof(struct gk_proof_hdr)) {
+    fprintf(stderr, "wrong packet size: %zu!\n", len);
+    assert(len == sizeof(struct ether_header) + sizeof(struct gk_proof_hdr));
+  }
 
-//  printf("handle proof packet\n");
+  //  printf("handle proof packet\n");
 
   // get stored packet
   entry = hashmap_get(
@@ -93,12 +91,22 @@ int handle_proof_packets(uint8_t *data, size_t len) {
     fprintf(stderr, "no corresponding packet in the map!\n");
     return 0;
   }
-//  printf("retrieve an entry: %p\n", entry);
-//  for (int i = 0; i < entry->pkt_len; ++i) {
-//    printf("%02X ", entry->pkt_data[i]);
-//  }
-//  printf("\n");
+  //  printf("retrieve an entry: %p\n", entry);
+  //  for (int i = 0; i < entry->pkt_len; ++i) {
+  //    printf("%02X ", entry->pkt_data[i]);
+  //  }
+  //  printf("\n");
 
+#ifdef GK_AUTH_RSA
+  // verify the digital signature
+  if (gk_rsa2048_verify(
+          proofh->pkt_hash, sizeof(proofh->pkt_hash), proofh->proof_sig,
+          sizeof(proofh->proof_sig))
+      != 0) {
+    fprintf(stderr, "gk_rsa2048_verify failed\n");
+    return 0;
+  }
+#else
   // calculate and verify the proof
   if (gk_hmac_sha256(
           entry->pkt_data, entry->pkt_len, proof_mac_buf, GK_RECEIVER_KEY)
@@ -108,17 +116,18 @@ int handle_proof_packets(uint8_t *data, size_t len) {
   }
 
   if (memcmp(proof_mac_buf, proofh->proof_hmac, GK_MAC_LEN) != 0) {
-//    for (int i = 0; i < GK_MAC_LEN; ++i) {
-//      printf("%02X ", proof_mac_buf[i]);
-//    }
-//    printf("\n");
-//    for (int i = 0; i < GK_MAC_LEN; ++i) {
-//      printf("%02X ", proofh->proof_hmac[i]);
-//    }
-//    printf("\n\n");
+    //    for (int i = 0; i < GK_MAC_LEN; ++i) {
+    //      printf("%02X ", proof_mac_buf[i]);
+    //    }
+    //    printf("\n");
+    //    for (int i = 0; i < GK_MAC_LEN; ++i) {
+    //      printf("%02X ", proofh->proof_hmac[i]);
+    //    }
+    //    printf("\n\n");
     fprintf(stderr, "wrong proof!\n");
     return 0;
   }
+#endif /* GK_AUTH_RSA */
 
   // remove the entry
   hashmap_delete(map, entry);
@@ -139,7 +148,7 @@ int handle_proof_packets(uint8_t *data, size_t len) {
       "%lld.%.9ld: %u : %ld bytes\n", (long long) now.tv_sec, now.tv_nsec, con,
       entry->pkt_len);
 
-//  printf("free: %p\n", entry->pkt_data);
+  //  printf("free: %p\n", entry->pkt_data);
   free(entry->pkt_data);
   return 0;
 }
@@ -237,7 +246,7 @@ int main() {
     }
     memcpy(entry.pkt_data, buffer, n);
     entry.pkt_len = n;
-//    printf("allocate: %p\n", entry.pkt_data);
+    //    printf("allocate: %p\n", entry.pkt_data);
 
     // calculate hash for the whole Ethernet frame
     if (gk_sha256(buffer, n, entry.pkt_hash) != 0) {
@@ -247,14 +256,14 @@ int main() {
     }
 
     // store the packet
-//    printf("store the packet: %p\n", entry);
+    //    printf("store the packet: %p\n", entry);
     hashmap_set(map, &entry);
     entry.pkt_data = NULL;
     entry.pkt_len = 0;
-//    for (int i = 0; i < entry->pkt_len; ++i) {
-//      printf("%02X ", entry->pkt_data[i]);
-//    }
-//    printf("\n");
+    //    for (int i = 0; i < entry->pkt_len; ++i) {
+    //      printf("%02X ", entry->pkt_data[i]);
+    //    }
+    //    printf("\n");
 
     //    printf("Client: %ld bytes\n", n);
     //    for (int i = 0; i < n; ++i) {
