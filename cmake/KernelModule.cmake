@@ -79,7 +79,7 @@ function(add_kernel_module)
   set(KBUILD_CMD
     $(MAKE) -C ${LKM_DIR} modules
     M=${CMAKE_CURRENT_BINARY_DIR} src=${CMAKE_CURRENT_SOURCE_DIR}
-    EXTRA_CFLAGS='${_cflags_str}')
+    EXTRA_CFLAGS=${_cflags_str})
   set(LKM_FILE ${LKM_TARGET_NAME}.ko)
   set(LKM_KBUILD_FILE ${LKM_TARGET_NAME}_Kbuild)
 
