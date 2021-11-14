@@ -30,11 +30,6 @@ struct timespec now = {-1, -1};
 struct hashmap *map = NULL;
 uint8_t proof_mac_buf[GK_MAC_LEN];
 
-struct gk_proof_hdr {
-  uint8_t pkt_hash[GK_MAC_LEN];
-  uint8_t proof_hmac[GK_MAC_LEN];
-};
-
 struct map_entry {
   uint8_t pkt_hash[GK_MAC_LEN];
   uint8_t *pkt_data;
