@@ -15,8 +15,20 @@ enum key_type {
 };
 
 #define GK_MAC_LEN (32)
+#define GK_SIG_LEN (2048 / 8)
 #define GK_ETHTYPE_PROOF (0x080A)
 
+struct gk_proof_hdr {
+  uint8_t pkt_hash[GK_MAC_LEN];
+#ifdef GK_AUTH_RSA
+  uint8_t proof_sig[GK_SIG_LEN];
+#else
+  uint8_t proof_hmac[GK_MAC_LEN];
+#endif /* GK_AUTH_RSA */
+};
+
+int gk_rsa2048_verify(
+    uint8_t *input, size_t input_size, uint8_t *sig, size_t sig_size);
 int gk_sha256(uint8_t *input, size_t input_size, uint8_t *output);
 int gk_hmac_sha256(
     uint8_t *input, size_t input_size, uint8_t *output, enum key_type key);

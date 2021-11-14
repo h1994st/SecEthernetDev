@@ -7,7 +7,9 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/hmac.h>
+#include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/signature.h>
 #include <wolfssl/wolfcrypt/types.h>
 
 #include "wolfssl_ext.h"
@@ -18,6 +20,32 @@
 static byte sender_hmac_key[GK_MAC_LEN] = {0x00};
 /* receiver */
 static byte receiver_hmac_key[GK_MAC_LEN] = {0x01};
+/* authenticator's public key */
+static byte auth_pub_key[294] =
+    "\x30\x82\x01\x22\x30\x0D\x06\x09\x2A\x86\x48\x86\xF7\x0D\x01\x01"
+    "\x01\x05\x00\x03\x82\x01\x0F\x00\x30\x82\x01\x0A\x02\x82\x01\x01"
+    "\x00\x9F\x60\xE7\xB8\x2F\x85\x21\x99\x4B\x6F\x9C\x4F\xBA\x25\x54"
+    "\xD3\xBE\xD5\x06\x2D\xC3\xD7\xD8\x05\x05\x27\xD5\xF7\xBC\x37\x6C"
+    "\x92\xCA\x08\xAA\x5B\x5D\xFF\x23\x29\x17\x83\x92\x56\x6A\x7A\x74"
+    "\x20\x2D\x2C\xB0\xF1\x77\x1D\x6A\x17\x85\x73\xF3\xDF\xE6\x21\x4D"
+    "\x9F\xE0\x86\xEA\x7D\x5D\x29\x6E\xF6\xA3\x19\xC8\x60\xD7\x9F\xFD"
+    "\x25\xD4\x05\xAC\x22\xB2\xBA\xE6\x68\xFC\x59\x34\xC2\xF4\x8D\xEA"
+    "\x66\x27\x8E\x4D\x3B\x33\x58\xD1\xD5\x99\x90\x13\xAF\xC1\xC6\x22"
+    "\xA7\x33\xB3\x05\xB9\x3E\xA0\x67\x73\xAA\xEC\x75\xD9\x2D\x27\x46"
+    "\xF5\x5F\x2D\xF2\x45\xF8\xF4\xE0\x1C\x43\x3E\x57\xDD\x1B\xAB\x13"
+    "\xB7\x42\xCD\x5F\x57\x7B\xA5\x5D\x2B\x71\x3D\xC6\xF8\xDE\xD9\x1B"
+    "\xFE\xA7\x39\x9C\xAF\xFC\xCE\x4C\x04\x30\xC1\x22\xDA\xB3\xC4\x17"
+    "\xAB\x94\xA2\xD4\xC8\x65\x5F\xE5\xE9\x3E\x05\x93\x7D\xA3\x74\x97"
+    "\x9C\x47\xDF\x54\x4F\x91\xEE\x7A\x1E\xEB\x21\x34\x8C\x6E\x29\x8C"
+    "\x8E\x2C\x54\x95\x5C\xF8\xFD\xAE\x24\x76\x04\x76\x81\xAD\xC5\x10"
+    "\x00\xB9\xFF\xCB\xED\xE5\x0C\x06\xD1\xB9\xC4\x79\x58\x65\xC3\x92"
+    "\x81\x4C\x41\x1C\x4E\x5E\x47\x9F\x06\x04\x1E\x1C\x1D\xEE\x69\x97"
+    "\x51\x02\x03\x01\x00\x01";
+uint8_t rsa_hash_input_template[51] = {
+    0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+    0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20,
+    0x00,  // ..., for hash
+};
 
 static int initialized = 0;
 
@@ -28,12 +56,22 @@ static RNG gk_rng;
 // AES
 static Aes gk_aes;
 static byte gk_aes_iv[GK_AES_BLOCK_SIZE] = {0x00};
+// RSA
+static RsaKey gk_rsa_key;
 
 int gk_crypto_init(void) {
   int ret;
+  word32 idx = 0;
   if (initialized != 0) return 0;
 
   ret = wc_InitRng(&gk_rng);
+  if (ret != 0) return -1;
+
+  ret = wc_InitRsaKey(&gk_rsa_key, NULL);
+  if (ret != 0) return -1;
+
+  ret = wc_RsaPublicKeyDecode(
+      auth_pub_key, &idx, &gk_rsa_key, sizeof(auth_pub_key));
   if (ret != 0) return -1;
 
   initialized = 1;
@@ -44,7 +82,28 @@ int gk_crypto_init(void) {
 void gk_crypto_exit(void) {
   if (initialized == 0) return;
   wc_FreeRng(&gk_rng);
+  wc_FreeRsaKey(&gk_rsa_key);
   initialized = 0;
+}
+
+int gk_rsa2048_verify(
+    uint8_t *input, size_t input_size, uint8_t *sig, size_t sig_size) {
+  int ret;
+
+  if (gk_crypto_init() != 0) return -1;
+
+  // if wrong hash size
+  if (input_size != 32) return -1;
+
+  memcpy(rsa_hash_input_template + 19, input, input_size);
+
+  ret = wc_SignatureVerifyHash(
+      WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA_W_ENC, rsa_hash_input_template,
+      sizeof(rsa_hash_input_template), sig, sig_size, &gk_rsa_key,
+      sizeof(gk_rsa_key));
+  if (ret != 0) return ret;
+
+  return 0;
 }
 
 int gk_sha256(uint8_t *input, size_t input_size, uint8_t *output) {

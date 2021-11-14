@@ -77,3 +77,16 @@ add_test(
   NAME test_gk_crypto
   COMMAND test_time_lock_puzzle
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_executable(test_gk_crypto_rsa test_gk_crypto.cpp)
+target_include_directories(test_gk_crypto_rsa
+  PRIVATE ${CMAKE_SOURCE_DIR}/common)
+target_link_libraries(test_gk_crypto_rsa
+  PRIVATE gtest_main
+  PRIVATE gk_crypto)
+add_test(
+  NAME test_gk_crypto_rsa
+  COMMAND test_time_lock_puzzle
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+target_compile_definitions(test_gk_crypto_rsa
+  PRIVATE GK_AUTH_RSA)
