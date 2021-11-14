@@ -17,9 +17,14 @@
 
 struct proofhdr {
   unsigned char pkt_hash[SHA256_DIGEST_SIZE];
+#ifdef MITM_AUTH_RSA
+  // TODO: determine the RSA signature size
+#define PROOF_SIG_SIZE (2048/8)
+  unsigned char proof_sig[PROOF_SIG_SIZE];
+#else
   unsigned char proof_hmac[SHA256_DIGEST_SIZE];
+#endif /* MITM_AUTH_RSA */
 } __attribute__((packed));
-;
 
 static inline struct proofhdr *proof_hdr(const struct sk_buff *skb) {
   return (struct proofhdr *) skb_network_header(skb);

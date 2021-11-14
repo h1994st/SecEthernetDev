@@ -45,3 +45,8 @@ add_kernel_module(
   NAME mitm_auth
   SRCS ${COMMON_SRCS} authenticator.c
   MACROS MITM_ROLE=2)
+
+add_kernel_module(
+  NAME mitm_auth_rsa
+  SRCS ${COMMON_SRCS} authenticator_rsa.c
+  MACROS MITM_AUTH_RSA MITM_ROLE=2)

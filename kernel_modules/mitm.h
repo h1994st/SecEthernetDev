@@ -5,6 +5,7 @@
 #ifndef SECETHERNETDEV_MITM_H
 #define SECETHERNETDEV_MITM_H
 
+#include <crypto/akcipher.h>
 #include <crypto/sha.h>
 #include <linux/debugfs.h>
 #include <linux/errno.h>
@@ -35,8 +36,13 @@ enum mitm_handler_result { MITM_CONSUMED, MITM_FORWARD, MITM_REPLY, MITM_DROP };
 
 extern u8 hmac_key[SHA256_DIGEST_SIZE];
 #if MITM_ROLE == 2
+#ifdef MITM_AUTH_RSA
+#define MITM_PROOF_RSA_KEY_LEN 1191
+extern u8 proof_key[MITM_PROOF_RSA_KEY_LEN];
+#else
 // TODO: we actually need an array to store keys for each slave device
 extern u8 proof_key[SHA256_DIGEST_SIZE];
+#endif /* MITM_AUTH_RSA */
 #endif
 
 /*
@@ -46,17 +52,25 @@ extern u8 proof_key[SHA256_DIGEST_SIZE];
 struct mitm {
   struct crypto_shash *hmac_shash;
 #if MITM_ROLE == 2
+#ifdef MITM_AUTH_RSA
+  struct crypto_akcipher *proof_akcipher;
+  struct akcipher_request *proof_req;
+  uint8_t *xbuf[2];
+#else
   struct crypto_shash *proof_shash;
-#endif
+#endif /* MITM_AUTH_RSA */
+#endif /* MITM_ROLE == 2 */
 #if MITM_ROLE == 1 || MITM_ROLE == 2
   struct crypto_shash *hash_shash;
-#endif
+#endif /* MITM_ROLE == 1 || MITM_ROLE == 2 */
   struct net_device *dev;
   spinlock_t lock;
 
 #if MITM_ROLE == 2
+#ifdef MITM_DOS_PROTECTION
   struct timer_list net_monitor_timer;
-#endif
+#endif /* MITM_DOS_PROTECTION */
+#endif /* MITM_ROLE == 2 */
 
   enum mitm_handler_result (*handle_ingress)(
       struct mitm *mitm, struct sk_buff *skb);

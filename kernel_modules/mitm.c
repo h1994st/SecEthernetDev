@@ -700,6 +700,7 @@ static const struct file_operations slave_fops = {
     .write = debugfs_set_slave,
 };
 
+#ifdef MITM_DOS_PROTECTION
 /*---------------------------- Timer init/fini ------------------------------*/
 static int net_monitor_init(struct mitm *mitm) {
   int err;
@@ -738,6 +739,7 @@ static void net_monitor_exit(struct mitm *mitm) {
   netdev_info(mitm->dev, "Delete network monitor timer\n");
   del_timer(&mitm->net_monitor_timer);
 }
+#endif /* MITM_DOS_PROTECTION */
 
 /*---------------------------- Module init/fini -----------------------------*/
 static struct net_device *mitm_dev;
@@ -747,7 +749,13 @@ int __init mitm_init_module(void) {
   struct mitm *mitm;
   struct crypto_shash *hmac_tfm;
 #if MITM_ROLE == 2
+#ifdef MITM_AUTH_RSA
+  struct crypto_akcipher *proof_tfm;
+  struct akcipher_request *proof_req;
+  uint8_t *xbuf[2];
+#else
   struct crypto_shash *proof_tfm;
+#endif /* MITM_AUTH_RSA */
 #endif
 #if MITM_ROLE == 1 || MITM_ROLE == 2
   struct crypto_shash *hash_tfm;
@@ -786,6 +794,40 @@ int __init mitm_init_module(void) {
   }
 
 #if MITM_ROLE == 2
+#ifdef MITM_AUTH_RSA
+  proof_tfm = crypto_alloc_akcipher("pkcs1pad(rsa,sha256)", 0, 0);
+  if (IS_ERR(proof_tfm)) {
+    netdev_err(
+        mitm_dev, "crypto_alloc_akcipher failed: err %ld\n",
+        PTR_ERR(proof_tfm));
+    ret = PTR_ERR(proof_tfm);
+    goto proof_crypto_alloc_failed;
+  }
+
+  ret =
+      crypto_akcipher_set_priv_key(proof_tfm, proof_key, ARRAY_SIZE(proof_key));
+  if (ret) {
+    netdev_err(mitm_dev, "crypto_akcipher_set_priv_key failed: err %d\n", ret);
+    goto proof_setkey_failed;
+  }
+
+  proof_req = akcipher_request_alloc(proof_tfm, GFP_KERNEL);
+  if (!proof_req) {
+    netdev_err(mitm_dev, "akcipher_request_alloc failed\n");
+    goto proof_alloc_req_failed;
+  }
+
+  xbuf[0] = (uint8_t *) __get_free_page(GFP_KERNEL);
+  if (xbuf[0] == NULL) {
+    netdev_err(mitm_dev, "__get_free_page 0 failed\n");
+    goto xbuf_0_alloc_failed;
+  }
+  xbuf[1] = (uint8_t *) __get_free_page(GFP_KERNEL);
+  if (xbuf[1] == NULL) {
+    netdev_err(mitm_dev, "__get_free_page 1 failed\n");
+    goto xbuf_1_alloc_failed;
+  }
+#else
   proof_tfm = crypto_alloc_shash("hmac(sha256)", 0, 0);
   if (IS_ERR(proof_tfm)) {
     netdev_err(
@@ -799,6 +841,7 @@ int __init mitm_init_module(void) {
     netdev_err(mitm_dev, "crypto_shash_setkey failed: err %d\n", ret);
     goto proof_setkey_failed;
   }
+#endif /* MITM_AUTH_RSA */
 #endif
 
 #if MITM_ROLE == 1 || MITM_ROLE == 2
@@ -829,7 +872,14 @@ int __init mitm_init_module(void) {
   mitm = netdev_priv(mitm_dev);
   mitm->hmac_shash = hmac_tfm;
 #if MITM_ROLE == 2
+#ifdef MITM_AUTH_RSA
+  mitm->proof_akcipher = proof_tfm;
+  mitm->proof_req = proof_req;
+  mitm->xbuf[0] = xbuf[0];
+  mitm->xbuf[1] = xbuf[1];
+#else
   mitm->proof_shash = proof_tfm;
+#endif /* MITM_AUTH_RSA */
 #endif
 #if MITM_ROLE == 1 || MITM_ROLE == 2
   mitm->hash_shash = hash_tfm;
@@ -852,12 +902,14 @@ int __init mitm_init_module(void) {
 #endif
 
 #if MITM_ROLE == 2
+#ifdef MITM_DOS_PROTECTION
   /* Initialize network monitor timer */
   ret = net_monitor_init(mitm);
   if (ret) {
     // cannot initialize the timer and enable DoS protection
     netdev_warn(mitm_dev, "net_monitor_init failed: err %d\n", ret);
   }
+#endif /* MITM_DOS_PROTECTION */
 #endif
 
   netdev_info(
@@ -866,18 +918,31 @@ int __init mitm_init_module(void) {
   return 0;
 
 #if MITM_ROLE == 1
-rht_init_failed:
   mitm_skb_rht_fini();
+rht_init_failed:
 #endif
 #if MITM_ROLE == 1 || MITM_ROLE == 2
+  crypto_free_shash(hash_tfm);
 hash_crypto_alloc_failed:
-#endif
+#endif /* MITM_ROLE == 1 || MITM_ROLE == 2 */
 #if MITM_ROLE == 2
+#ifdef MITM_AUTH_RSA
+  free_page((unsigned long) xbuf[1]);
+xbuf_1_alloc_failed:
+  free_page((unsigned long) xbuf[0]);
+xbuf_0_alloc_failed:
+  akcipher_request_free(proof_req);
+proof_alloc_req_failed:
+#endif /* MITM_AUTH_RSA */
 proof_setkey_failed:
+#ifdef MITM_AUTH_RSA
+  crypto_free_akcipher(proof_tfm);
+#else
   crypto_free_shash(proof_tfm);
+#endif /* MITM_AUTH_RSA */
 
 proof_crypto_alloc_failed:
-#endif
+#endif /* MITM_ROLE == 2 */
 
 hmac_setkey_failed:
   crypto_free_shash(hmac_tfm);
@@ -895,13 +960,22 @@ void __exit mitm_exit_module(void) {
   struct mitm *mitm = netdev_priv(mitm_dev);
 
 #if MITM_ROLE == 2
+#ifdef MITM_DOS_PROTECTION
   /* Delete network monitor timer */
   net_monitor_exit(mitm);
+#endif /* MITM_DOS_PROTECTION */
 #endif
 
   crypto_free_shash(mitm->hmac_shash);
 #if MITM_ROLE == 2
+#ifdef MITM_AUTH_RSA
+  crypto_free_akcipher(mitm->proof_akcipher);
+  akcipher_request_free(mitm->proof_req);
+  free_page((unsigned long) mitm->xbuf[0]);
+  free_page((unsigned long) mitm->xbuf[1]);
+#else
   crypto_free_shash(mitm->proof_shash);
+#endif /* MITM_AUTH_RSA */
 #endif
 #if MITM_ROLE == 1 || MITM_ROLE == 2
   crypto_free_shash(mitm->hash_shash);
