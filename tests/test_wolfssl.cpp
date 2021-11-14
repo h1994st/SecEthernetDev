@@ -215,6 +215,28 @@ const unsigned char rsa_key[] =
     "\x51\x19\xB3\x24\x15\x9E\x14";
 const unsigned int rsa_key_len = 1191;
 
+const unsigned char rsa_pub_key[] =
+    "\x30\x82\x01\x22\x30\x0D\x06\x09\x2A\x86\x48\x86\xF7\x0D\x01\x01"
+    "\x01\x05\x00\x03\x82\x01\x0F\x00\x30\x82\x01\x0A\x02\x82\x01\x01"
+    "\x00\x9F\x60\xE7\xB8\x2F\x85\x21\x99\x4B\x6F\x9C\x4F\xBA\x25\x54"
+    "\xD3\xBE\xD5\x06\x2D\xC3\xD7\xD8\x05\x05\x27\xD5\xF7\xBC\x37\x6C"
+    "\x92\xCA\x08\xAA\x5B\x5D\xFF\x23\x29\x17\x83\x92\x56\x6A\x7A\x74"
+    "\x20\x2D\x2C\xB0\xF1\x77\x1D\x6A\x17\x85\x73\xF3\xDF\xE6\x21\x4D"
+    "\x9F\xE0\x86\xEA\x7D\x5D\x29\x6E\xF6\xA3\x19\xC8\x60\xD7\x9F\xFD"
+    "\x25\xD4\x05\xAC\x22\xB2\xBA\xE6\x68\xFC\x59\x34\xC2\xF4\x8D\xEA"
+    "\x66\x27\x8E\x4D\x3B\x33\x58\xD1\xD5\x99\x90\x13\xAF\xC1\xC6\x22"
+    "\xA7\x33\xB3\x05\xB9\x3E\xA0\x67\x73\xAA\xEC\x75\xD9\x2D\x27\x46"
+    "\xF5\x5F\x2D\xF2\x45\xF8\xF4\xE0\x1C\x43\x3E\x57\xDD\x1B\xAB\x13"
+    "\xB7\x42\xCD\x5F\x57\x7B\xA5\x5D\x2B\x71\x3D\xC6\xF8\xDE\xD9\x1B"
+    "\xFE\xA7\x39\x9C\xAF\xFC\xCE\x4C\x04\x30\xC1\x22\xDA\xB3\xC4\x17"
+    "\xAB\x94\xA2\xD4\xC8\x65\x5F\xE5\xE9\x3E\x05\x93\x7D\xA3\x74\x97"
+    "\x9C\x47\xDF\x54\x4F\x91\xEE\x7A\x1E\xEB\x21\x34\x8C\x6E\x29\x8C"
+    "\x8E\x2C\x54\x95\x5C\xF8\xFD\xAE\x24\x76\x04\x76\x81\xAD\xC5\x10"
+    "\x00\xB9\xFF\xCB\xED\xE5\x0C\x06\xD1\xB9\xC4\x79\x58\x65\xC3\x92"
+    "\x81\x4C\x41\x1C\x4E\x5E\x47\x9F\x06\x04\x1E\x1C\x1D\xEE\x69\x97"
+    "\x51\x02\x03\x01\x00\x01";
+const unsigned int rsa_pub_key_len = 294;
+
 void hexdump(const void *buffer, word32 len) {
   word32 i;
   word32 cols = 16;
@@ -232,7 +254,7 @@ TEST(WolfSSLTest, TestRSAKeyGen) {
   int ret;
   RsaKey rsaKey;
   WC_RNG rng;
-  byte *rsaKeyBuf = nullptr;
+  byte *rsaKeyBuf;
   word32 rsaKeyLen;
 
   ret = wc_InitRng(&rng);
@@ -253,6 +275,38 @@ TEST(WolfSSLTest, TestRSAKeyGen) {
   rsaKeyLen = ret;
   std::cout << rsaKeyLen << std::endl;
   hexdump(rsaKeyBuf, rsaKeyLen);
+
+  free(rsaKeyBuf);
+}
+
+TEST(WolfSSLTest, TestRSAKeyDumpPublicDer) {
+  int ret;
+  RsaKey rsaKey;
+  WC_RNG rng;
+  byte *rsaKeyBuf;
+  word32 rsaKeyLen;
+  word32 idx;
+
+  ret = wc_InitRng(&rng);
+  ASSERT_EQ(ret, 0);
+
+  ret = wc_InitRsaKey(&rsaKey, nullptr);
+  ASSERT_EQ(ret, 0);
+
+  ret = wc_RsaPrivateKeyDecode(rsa_key, &idx, &rsaKey, rsa_key_len);
+  ASSERT_EQ(ret, 0);
+
+  rsaKeyLen = 2048;
+  rsaKeyBuf = static_cast<byte *>(malloc(rsaKeyLen));
+  ASSERT_NE(rsaKeyBuf, nullptr);
+
+  ret = wc_RsaKeyToPublicDer(&rsaKey, rsaKeyBuf, rsaKeyLen);
+  ASSERT_GT(ret, 0);
+  rsaKeyLen = ret;
+  std::cout << rsaKeyLen << std::endl;
+  hexdump(rsaKeyBuf, rsaKeyLen);
+
+  free(rsaKeyBuf);
 }
 
 const unsigned char rsa_msg[] =
@@ -301,7 +355,7 @@ const unsigned char rsa_sig[] =
     "\x36\xc5\xfb\x83\x7f\x8a\x16\x10\x1f\xf9\x64\xe0\x1d\x47\xd1\x9c";
 const unsigned int rsa_sig_size = 256;
 
-TEST(WolfSSLTest, TestRSASignature) {
+TEST(WolfSSLTest, TestRSASignatureGeneration) {
   int ret;
   RsaKey rsaKey;
   WC_RNG rng;
@@ -328,4 +382,30 @@ TEST(WolfSSLTest, TestRSASignature) {
   ASSERT_EQ(ret, 0);
 
   ASSERT_EQ(memcmp(sigBuf, rsa_sig, rsa_sig_size), 0);
+}
+
+TEST(WolfSSLTest, TestRSASignatureVerification) {
+  int ret;
+  RsaKey rsaKey;
+  WC_RNG rng;
+  word32 idx = 0;
+  word32 sigLen;
+
+  ret = wc_InitRng(&rng);
+  ASSERT_EQ(ret, 0);
+
+  ret = wc_InitRsaKey(&rsaKey, nullptr);
+  ASSERT_EQ(ret, 0);
+
+  ret = wc_RsaPublicKeyDecode(rsa_pub_key, &idx, &rsaKey, rsa_pub_key_len);
+  ASSERT_EQ(ret, 0);
+
+  sigLen =
+      wc_SignatureGetSize(WC_SIGNATURE_TYPE_RSA_W_ENC, &rsaKey, sizeof(rsaKey));
+  ASSERT_EQ(sigLen, rsa_sig_size);
+
+  ret = wc_SignatureVerifyHash(
+      WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA_W_ENC, rsa_digest,
+      rsa_digest_size, rsa_sig, rsa_sig_size, &rsaKey, sizeof(rsaKey));
+  ASSERT_EQ(ret, 0);
 }
