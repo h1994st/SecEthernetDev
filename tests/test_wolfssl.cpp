@@ -237,7 +237,7 @@ const unsigned char rsa_pub_key[] =
     "\x51\x02\x03\x01\x00\x01";
 const unsigned int rsa_pub_key_len = 294;
 
-void hexdump(const void *buffer, word32 len) {
+static void hexdump(const void *buffer, word32 len) {
   word32 i;
   word32 cols = 16;
 
