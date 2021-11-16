@@ -397,17 +397,10 @@ int gk_generate_puzzle(
   BN_set_word(tmp1, T);  // ms
   BN_set_word(tmp2, S);
 
-  // t = T * S / 1000
+  // t = T * S
   ret = BN_mul(t, tmp1, tmp2, NULL);
   if (ret != WOLFSSL_SUCCESS) {
     // Failed to calculate `T * S`
-    ret = -1;
-    goto failed;
-  }
-  BN_set_word(tmp2, 1000);
-  ret = BN_div(t, tmp1, t, tmp2, NULL);
-  if (ret != WOLFSSL_SUCCESS) {
-    // Failed to calculate `T * S / 1000`
     ret = -1;
     goto failed;
   }
@@ -486,13 +479,12 @@ out:
 uint64_t gk_solve_puzzle(struct time_lock_puzzle *puzzle, int *err) {
   int ret;
   uint64_t ans = 0;
+  uint64_t t;
 
   BIGNUM *b;
   BIGNUM *a;
   BIGNUM *n;
-  BIGNUM *t;
   BIGNUM *bn_two;
-  BIGNUM *tmp1;
   BIGNUM *enc_key_bn;
   BIGNUM *dec_key_bn;
 
@@ -504,13 +496,11 @@ uint64_t gk_solve_puzzle(struct time_lock_puzzle *puzzle, int *err) {
   b = BN_new();
   a = BN_new();
   n = BN_new();
-  t = BN_new();
   bn_two = BN_new();
-  tmp1 = BN_new();
   enc_key_bn = BN_new();
   dec_key_bn = BN_new();
-  if (b == NULL || a == NULL || n == NULL || t == NULL || bn_two == NULL
-      || tmp1 == NULL || enc_key_bn == NULL || dec_key_bn == NULL) {
+  if (b == NULL || a == NULL || n == NULL || bn_two == NULL
+      || enc_key_bn == NULL || dec_key_bn == NULL) {
     // Failed to create big numbers
     *err = -1;
     goto failed;
@@ -518,15 +508,12 @@ uint64_t gk_solve_puzzle(struct time_lock_puzzle *puzzle, int *err) {
   BN_init(b);
   BN_init(a);
   BN_init(n);
-  BN_init(t);
   BN_init(bn_two);
-  BN_init(tmp1);
   BN_init(enc_key_bn);
   BN_init(dec_key_bn);
 
   BN_set_word(a, 2);
   BN_set_word(bn_two, 2);
-  BN_set_word(t, puzzle->t);
 
   // Convert `n` to a big number
   if (BN_bin2bn(puzzle->n, sizeof(puzzle->n), n) == NULL) {
@@ -550,20 +537,11 @@ uint64_t gk_solve_puzzle(struct time_lock_puzzle *puzzle, int *err) {
     goto failed;
   }
 
-  // tmp1 = t
-  BN_copy(tmp1, t);
-  while (!BN_is_zero(tmp1)) {
+  for (t = puzzle->t; t != 0; --t) {
     // update b = (b ^ 2) % n
     ret = BN_mod_exp(b, b, bn_two, n, NULL);
     if (ret != WOLFSSL_SUCCESS) {
       // Failed to calculate `(b ^ 2) % n`
-      *err = -1;
-      goto failed;
-    }
-
-    ret = BN_sub_word(tmp1, 1);
-    if (ret != WOLFSSL_SUCCESS) {
-      // Failed to subtract 1
       *err = -1;
       goto failed;
     }
@@ -611,9 +589,7 @@ failed:
   BN_clear_free(b);
   BN_clear_free(a);
   BN_clear_free(n);
-  BN_clear_free(t);
   BN_clear_free(bn_two);
-  BN_clear_free(tmp1);
   BN_clear_free(enc_key_bn);
   BN_clear_free(dec_key_bn);
 

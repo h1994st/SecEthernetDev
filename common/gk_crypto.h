@@ -70,7 +70,7 @@ int gk_benchmark_puzzle(uint32_t t);
 
 // Inputs:
 // - T: solving time in ms
-// - S: number of squaring operations per second
+// - S: number of squaring operations per ms
 // Outputs:
 // - Puzzle: n, t, Ck, Cm
 // - Answer: a number
