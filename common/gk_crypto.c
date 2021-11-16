@@ -204,6 +204,14 @@ failed:
   return ret;
 }
 
+// NOTE: for testing only
+static uint8_t p_buf[GK_PUZZLE_PRIME_BITS / 8] =
+    "\xF9\xE8\x1E\xB1\x97\xFB\xF3\xFD\x90\x2E\x50\x63\xBE\xA6\xEA\x8D"
+    "\x1C\x0B\xB4\x35\x72\x70\xFD\x88\xBC\xD7\xF0\x4A\xAB\x0C\xD8\x7F";
+static uint8_t q_buf[GK_PUZZLE_PRIME_BITS / 8] =
+    "\xC4\x1D\xA3\x23\x20\xB2\x51\x1B\xC4\x6D\xC1\x6E\xFF\xE6\xDD\x6D"
+    "\x41\xEF\x83\x7B\x5A\xAE\x1F\x03\x33\x6A\x46\xCA\x45\x8F\x24\x27";
+
 // Puzzle: n, t, Ck, Cm
 // Answer: a number
 int gk_generate_puzzle(
@@ -331,8 +339,7 @@ int gk_generate_puzzle(
     ret = -1;
     goto failed;
   }
-  // NOTE: for now, we use hard-coded prime numbers. After the pull request
-  // (#4481) is merged into wolfSSL, we can use randomly-generated prime numbers
+  // NOTE: for now, we use hard-coded prime numbers.
   //  BN_set_word(p, 59833);
   //  BN_set_word(q, 62549);
 
@@ -431,7 +438,7 @@ int gk_generate_puzzle(
   }
 
   // Convert big number to bytes
-  ret = BN_bn2bin(n, puzzle_ex->puzzle.n);
+  ret = BN_bn2bin(n, puzzle_ex->puzzle.n + GK_PUZZLE_N_BYTES - BN_num_bytes(n));
   if (ret == -1) {
     // Failed to convert `n`
     ret = -1;

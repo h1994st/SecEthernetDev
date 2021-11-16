@@ -65,7 +65,6 @@ unsigned char rsa_sig[] =
     "\x36\xc5\xfb\x83\x7f\x8a\x16\x10\x1f\xf9\x64\xe0\x1d\x47\xd1\x9c";
 unsigned int rsa_sig_size = 256;
 
-
 TEST(GkCryptoTest, TestProofVerification) {
 //  gk_crypto_init();
 #ifdef GK_AUTH_RSA
