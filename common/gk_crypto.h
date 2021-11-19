@@ -17,6 +17,8 @@ enum key_type {
 #define GK_MAC_LEN (32)
 #define GK_SIG_LEN (2048 / 8)
 #define GK_ETHTYPE_PROOF (0x080A)
+#define GK_ETHTYPE_PUZZLE (0x080B)
+#define GK_ETHTYPE_PUZZLE_SOLUTION (0x080C)
 
 struct gk_proof_hdr {
   uint8_t pkt_hash[GK_MAC_LEN];
@@ -70,7 +72,7 @@ int gk_benchmark_puzzle(uint32_t t);
 
 // Inputs:
 // - T: solving time in ms
-// - S: number of squaring operations per ms
+// - S: number of squaring operations per second
 // Outputs:
 // - Puzzle: n, t, Ck, Cm
 // - Answer: a number

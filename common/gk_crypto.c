@@ -397,10 +397,17 @@ int gk_generate_puzzle(
   BN_set_word(tmp1, T);  // ms
   BN_set_word(tmp2, S);
 
-  // t = T * S
+  // t = T * S / 1000
   ret = BN_mul(t, tmp1, tmp2, NULL);
   if (ret != WOLFSSL_SUCCESS) {
     // Failed to calculate `T * S`
+    ret = -1;
+    goto failed;
+  }
+  BN_set_word(tmp2, 1000);
+  ret = BN_div(t, tmp1, t, tmp2, NULL);
+  if (ret != WOLFSSL_SUCCESS) {
+    // Failed to calculate `T * S / 1000`
     ret = -1;
     goto failed;
   }
