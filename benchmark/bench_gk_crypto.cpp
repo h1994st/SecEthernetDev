@@ -26,7 +26,7 @@ static void BM_TimeLockPuzzle_Generating(benchmark::State &state) {
   gk_crypto_init();
 
   for (auto _ : state) {
-    ret = gk_generate_puzzle(state.range(0), 56392, &puzzle_ex);
+    ret = gk_generate_puzzle(state.range(0), 260, &puzzle_ex);
     if (ret != 0) {
       state.SkipWithError("Failed to generate the puzzle!");
       break;
@@ -44,7 +44,7 @@ static void BM_TimeLockPuzzle_Solving(benchmark::State &state) {
 
   gk_crypto_init();
 
-  err = gk_generate_puzzle(state.range(0), 56392, &puzzle_ex);
+  err = gk_generate_puzzle(state.range(0), 260, &puzzle_ex);
 
   for (auto _ : state) {
     ans = gk_solve_puzzle(&puzzle_ex.puzzle, &err);
