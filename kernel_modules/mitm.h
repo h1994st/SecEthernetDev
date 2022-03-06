@@ -25,6 +25,12 @@
 #include <linux/version.h>
 #include <net/sch_generic.h>
 
+#if MITM_ROLE == 1
+#ifdef MITM_DOS_PROTECTION
+#include "time_lock_puzzle.h"
+#endif /* MITM_DOS_PROTECTION */
+#endif /* MITM_ROLE == 1 */
+
 /*
  * enum mitm_handler_result - Possible return values for handlers.
  * @MITM_CONSUMED: skb was consumed by handler, do not process it further.
@@ -66,11 +72,13 @@ struct mitm {
   struct net_device *dev;
   spinlock_t lock;
 
-#if MITM_ROLE == 2
+#if MITM_ROLE == 1
 #ifdef MITM_DOS_PROTECTION
   struct timer_list net_monitor_timer;
+  time_lock_puzzle_ctx *puzzle;
+  time_lock_puzzle *payload;
 #endif /* MITM_DOS_PROTECTION */
-#endif /* MITM_ROLE == 2 */
+#endif /* MITM_ROLE == 1 */
 
   enum mitm_handler_result (*handle_ingress)(
       struct mitm *mitm, struct sk_buff *skb);

@@ -41,8 +41,13 @@
 
 #elif (MITM_ROLE == 1)
 
+#ifdef MITM_DOS_PROTECTION
+#define DRV_NAME "mitm_recv_dos"
+#include "receiver_dos.h"
+#else
 #define DRV_NAME "mitm_recv"
 #include "receiver.h"
+#endif /* MITM_DOS_PROTECTION */
 
 #elif (MITM_ROLE == 2)
 
@@ -52,6 +57,10 @@
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 #include <linux/netfilter.h>
 #include <linux/netfilter_bridge.h>
+#endif
+
+#ifdef MITM_DOS_PROTECTION
+#include "time_lock_puzzle.h"
 #endif
 
 #else
@@ -101,7 +110,7 @@ static rx_handler_result_t mitm_handle_frame(struct sk_buff **pskb) {
       // Consumed because is queued elsewhere.
     case MITM_CONSUMED: return RX_HANDLER_CONSUMED;
     default:  // Drop.
-      atomic_long_inc(&(skb->dev->tx_dropped));
+      atomic_long_inc(&(skb->dev->rx_dropped));
       dev_kfree_skb_any(skb);
       return RX_HANDLER_CONSUMED;
   }
@@ -297,8 +306,13 @@ static int br_debug_nf_register(struct net *net) {
     return 0;
   }
 
+#ifndef MITM_DOS_PROTECTION
   return nf_register_net_hooks(
       net, br_debug_nf_ops, ARRAY_SIZE(br_debug_nf_ops));
+#else
+  // do not hook anything
+  return 0;
+#endif /* MITM_DOS_PROTECTION */
 }
 
 static void br_debug_nf_unregister(struct net *net) {
@@ -307,10 +321,81 @@ static void br_debug_nf_unregister(struct net *net) {
     return;
   }
 
+#ifndef MITM_DOS_PROTECTION
   nf_unregister_net_hooks(net, br_debug_nf_ops, ARRAY_SIZE(br_debug_nf_ops));
+#endif /* MITM_DOS_PROTECTION */
 }
 #endif
 #endif
+
+#ifdef MITM_DOS_PROTECTION
+/*---------------------------- Timer init/fini ------------------------------*/
+static int net_monitor_init(struct mitm *mitm) {
+  int err;
+  int i = 0;
+  struct slave *slave = mitm_slave(mitm);
+  struct net_device *slave_dev = slave->dev;
+  struct rtnl_link_stats64 stats;
+  struct timer_list *timer;
+
+  // initialize traffic stats
+  dev_get_stats(slave_dev, &stats);
+  dev_rx_bytes[i] = stats.rx_bytes;
+  netdev_info(
+      mitm->dev, "Port (%s): %llu bytes\n", slave_dev->name, stats.rx_bytes);
+
+  // initialize the timer
+  timer = &mitm->net_monitor_timer;
+  timer_setup(timer, net_monitor_cb, 0);
+  err = mod_timer(timer, jiffies + msecs_to_jiffies(NET_MONITOR_DELAY));
+  if (err) {
+    // failed to set timer
+    netdev_err(mitm->dev, "Failed to set timer\n");
+    return err;
+  }
+
+  netdev_info(mitm->dev, "Set timer: %d ms\n", NET_MONITOR_DELAY);
+
+  return 0;
+}
+
+static void net_monitor_exit(struct mitm *mitm) {
+  netdev_info(mitm->dev, "Delete network monitor timer\n");
+  del_timer(&mitm->net_monitor_timer);
+}
+
+static int time_lock_puzzle_init(struct mitm *mitm) {
+  time_lock_puzzle_ctx *puzzle;
+  time_lock_puzzle *payload;
+
+  puzzle = time_lock_puzzle_ctx_alloc();
+  if (!puzzle) {
+    // failed to allocate puzzle context
+    netdev_err(mitm->dev, "Failed to allocate the puzzle context\n");
+    return -1;
+  }
+  // TODO: adjust this value
+  puzzle->S = 1;
+
+  payload = kzalloc(sizeof(time_lock_puzzle), GFP_KERNEL);
+  if (!payload) {
+    // failed to allocate memory for puzzle payload
+    netdev_err(mitm->dev, "Failed to allocate the puzzle payload\n");
+    time_lock_puzzle_ctx_free(puzzle);
+    return -1;
+  }
+
+  mitm->puzzle = puzzle;
+  mitm->payload = payload;
+
+  return 0;
+}
+
+static void time_lock_puzzle_exit(struct mitm *mitm) {
+  if (mitm->puzzle) time_lock_puzzle_ctx_free(mitm->puzzle);
+  if (mitm->payload) kfree(mitm->payload);
+}
+#endif /* MITM_DOS_PROTECTION */
 
 /*--------------------------------- Slavery ---------------------------------*/
 
@@ -412,7 +497,7 @@ static int mitm_enslave(
   if (res) goto err_upper_unlink;
 
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER) /* w/ bridge netfilter */
-  /* set private date for hooks */
+  /* set private data for hooks */
   for (i = 0; i < ARRAY_SIZE(br_debug_nf_ops); ++i) {
     br_debug_nf_ops[i].priv = (void *) mitm;
   }
@@ -447,6 +532,17 @@ static int mitm_enslave(
   mitm_set_carrier(mitm);
 
   netdev_info(mitm_dev, "Enslaving %s interface\n", slave_dev->name);
+
+#if MITM_ROLE == 1
+#ifdef MITM_DOS_PROTECTION
+  /* Initialize network monitor timer */
+  res = net_monitor_init(mitm);
+  if (res) {
+    // cannot initialize the timer and enable DoS protection
+    netdev_warn(mitm_dev, "net_monitor_init failed: err %d\n", res);
+  }
+#endif /* MITM_DOS_PROTECTION */
+#endif
 
   return 0;
 
@@ -503,6 +599,12 @@ mitm_emancipate(struct net_device *mitm_dev, struct net_device *slave_dev) {
   if (!slave_dev) slave_dev = mitm->slave.dev;
 
   if (!slave_dev) return 0; /* nothing to do */
+
+#if MITM_ROLE == 1
+#ifdef MITM_DOS_PROTECTION
+  net_monitor_exit(mitm);
+#endif /* MITM_DOS_PROTECTION */
+#endif
 
   /* slave is not a slave or master is not master of this slave */
   if (!(slave_dev->flags & IFF_SLAVE)
@@ -700,47 +802,6 @@ static const struct file_operations slave_fops = {
     .write = debugfs_set_slave,
 };
 
-#ifdef MITM_DOS_PROTECTION
-/*---------------------------- Timer init/fini ------------------------------*/
-static int net_monitor_init(struct mitm *mitm) {
-  int err;
-  int i = 0;
-  struct slave *slave = mitm_slave(mitm);
-  struct net_device *br_dev = slave->dev;
-  struct net_device *br_port_dev;
-  struct list_head *iter;
-  struct rtnl_link_stats64 stats;
-  struct timer_list *timer;
-
-  // initialize traffic stats
-  netdev_for_each_lower_dev(br_dev, br_port_dev, iter) {
-    dev_get_stats(br_port_dev, &stats);
-    dev_rx_bytes[i++] = stats.rx_bytes;
-    netdev_info(
-        mitm->dev, "Port (%s): %llu bytes\n", br_port_dev->name,
-        stats.rx_bytes);
-  }
-
-  // initialize the timer
-  timer = &mitm->net_monitor_timer;
-  timer_setup(timer, net_monitor_cb, 0);
-  err = mod_timer(timer, jiffies + msecs_to_jiffies(NET_MONITOR_DELAY));
-  if (err) {
-    // failed to set timer
-    netdev_err(mitm->dev, "Failed to set timer\n");
-    return err;
-  }
-
-  netdev_info(mitm->dev, "Set timer: %d ms\n", NET_MONITOR_DELAY);
-  return 0;
-}
-
-static void net_monitor_exit(struct mitm *mitm) {
-  netdev_info(mitm->dev, "Delete network monitor timer\n");
-  del_timer(&mitm->net_monitor_timer);
-}
-#endif /* MITM_DOS_PROTECTION */
-
 /*---------------------------- Module init/fini -----------------------------*/
 static struct net_device *mitm_dev;
 
@@ -893,22 +954,20 @@ int __init mitm_init_module(void) {
 #endif
 
 #if MITM_ROLE == 1
+#ifndef MITM_DOS_PROTECTION
   // initialize the hash table
   ret = mitm_skb_rht_init();
   if (ret) {
     netdev_err(mitm_dev, "mitm_skb_rht_init failed: err %d\n", ret);
     goto rht_init_failed;
   }
+#endif /* MITM_DOS_PROTECTION */
 #endif
 
-#if MITM_ROLE == 2
+#if MITM_ROLE == 1
 #ifdef MITM_DOS_PROTECTION
-  /* Initialize network monitor timer */
-  ret = net_monitor_init(mitm);
-  if (ret) {
-    // cannot initialize the timer and enable DoS protection
-    netdev_warn(mitm_dev, "net_monitor_init failed: err %d\n", ret);
-  }
+  /* Initialize time-lock puzzle */
+  time_lock_puzzle_init(mitm);
 #endif /* MITM_DOS_PROTECTION */
 #endif
 
@@ -918,8 +977,10 @@ int __init mitm_init_module(void) {
   return 0;
 
 #if MITM_ROLE == 1
+#ifndef MITM_DOS_PROTECTION
   mitm_skb_rht_fini();
 rht_init_failed:
+#endif /* MITM_DOS_PROTECTION */
 #endif
 #if MITM_ROLE == 1 || MITM_ROLE == 2
   crypto_free_shash(hash_tfm);
@@ -959,10 +1020,9 @@ register_failed:
 void __exit mitm_exit_module(void) {
   struct mitm *mitm = netdev_priv(mitm_dev);
 
-#if MITM_ROLE == 2
+#if MITM_ROLE == 1
 #ifdef MITM_DOS_PROTECTION
-  /* Delete network monitor timer */
-  net_monitor_exit(mitm);
+  time_lock_puzzle_exit(mitm);
 #endif /* MITM_DOS_PROTECTION */
 #endif
 
@@ -982,7 +1042,9 @@ void __exit mitm_exit_module(void) {
 #endif
 
 #if MITM_ROLE == 1
+#ifndef MITM_DOS_PROTECTION
   mitm_skb_rht_fini();
+#endif /* MITM_DOS_PROTECTION */
 #endif
 
   debugfs_remove_recursive(debugfs_dir);

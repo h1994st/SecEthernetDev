@@ -50,3 +50,8 @@ add_kernel_module(
   NAME mitm_auth_rsa
   SRCS ${COMMON_SRCS} authenticator_rsa.c
   MACROS MITM_AUTH_RSA MITM_ROLE=2)
+
+add_kernel_module(
+  NAME mitm_recv_dos
+  SRCS ${COMMON_SRCS} receiver_dos.c
+  MACROS MITM_ROLE=1 MITM_DOS_PROTECTION)

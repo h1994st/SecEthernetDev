@@ -6,6 +6,11 @@ target_link_libraries(udp_client_raw
   PRIVATE pcap
   PRIVATE gk_crypto)
 
+add_executable(udp_client_solver_raw udp_client_solver_raw.c)
+target_link_libraries(udp_client_solver_raw
+  PRIVATE pcap
+  PRIVATE gk_crypto)
+
 add_executable(udp_server_raw udp_server_raw.c)
 target_link_libraries(udp_server_raw
   PRIVATE pcap

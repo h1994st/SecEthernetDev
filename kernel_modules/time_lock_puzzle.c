@@ -1,17 +1,25 @@
 #include "time_lock_puzzle.h"
 
-#include <linux/slab.h>
-#include <linux/random.h>
 #include <crypto/skcipher.h>
+#include <linux/random.h>
+#include <linux/slab.h>
 
-time_lock_puzzle *time_lock_puzzle_alloc(void) {
+static uint8_t p_buf[GK_PUZZLE_PRIME_BITS / 8] =
+    "\xF9\xE8\x1E\xB1\x97\xFB\xF3\xFD\x90\x2E\x50\x63\xBE\xA6\xEA\x8D"
+    "\x1C\x0B\xB4\x35\x72\x70\xFD\x88\xBC\xD7\xF0\x4A\xAB\x0C\xD8\x7F";
+static uint8_t q_buf[GK_PUZZLE_PRIME_BITS / 8] =
+    "\xC4\x1D\xA3\x23\x20\xB2\x51\x1B\xC4\x6D\xC1\x6E\xFF\xE6\xDD\x6D"
+    "\x41\xEF\x83\x7B\x5A\xAE\x1F\x03\x33\x6A\x46\xCA\x45\x8F\x24\x27";
+
+time_lock_puzzle_ctx *time_lock_puzzle_ctx_alloc(void) {
   int ret;
-  time_lock_puzzle *puzzle = NULL;
+  time_lock_puzzle_ctx *puzzle = NULL;
   MPI tmp1 = NULL;
   MPI tmp2 = NULL;
 
   // Allocate memory
-  puzzle = (time_lock_puzzle *) kzalloc(sizeof(time_lock_puzzle), GFP_KERNEL);
+  puzzle = (time_lock_puzzle_ctx *) kzalloc(
+      sizeof(time_lock_puzzle_ctx), GFP_KERNEL);
   if (!puzzle) {
     pr_err("cannot allocate memory for time_lock_puzzle\n");
     return NULL;
@@ -26,14 +34,15 @@ time_lock_puzzle *time_lock_puzzle_alloc(void) {
   }
 
   // Generate AES key and IV
-//  get_random_bytes(puzzle->key, sizeof(puzzle->key));
-//  get_random_bytes(puzzle->iv, sizeof(puzzle->iv));
+  //    get_random_bytes(puzzle->key, sizeof(puzzle->key));
+  //    get_random_bytes(puzzle->iv, sizeof(puzzle->iv));
   // NOTE: for now, use hard-coded key and IV
   memset(puzzle->key, 2, sizeof(puzzle->key));
-  memset(puzzle->iv, 3, sizeof(puzzle->iv));
+  memset(puzzle->iv, 0, sizeof(puzzle->iv));
 
   // Set AES key and IV
-  ret = crypto_sync_skcipher_setkey(puzzle->tfm, puzzle->key, sizeof(puzzle->key));
+  ret = crypto_sync_skcipher_setkey(
+      puzzle->tfm, puzzle->key, sizeof(puzzle->key));
   if (ret < 0) {
     pr_err("Cannot set key: %d\n", ret);
     crypto_free_sync_skcipher(puzzle->tfm);
@@ -45,14 +54,16 @@ time_lock_puzzle *time_lock_puzzle_alloc(void) {
   // TODO: generate two random prime numbers. See wolfSSL's implementation as an
   //  example.
   // NOTE: for now, just hard coded p and q
-  puzzle->p = mpi_alloc_set_ui(59833);
-  puzzle->q = mpi_alloc_set_ui(62549);
+//  puzzle->p = mpi_alloc_set_ui(59833);
+//  puzzle->q = mpi_alloc_set_ui(62549);
+  puzzle->p = mpi_read_raw_data(p_buf, sizeof(p_buf));
+  puzzle->q = mpi_read_raw_data(q_buf, sizeof(q_buf));
+
   puzzle->n = mpi_new(0);
   // TODO: should randomly choose 1 < a < n, but let's choose a = 2
   puzzle->a = mpi_alloc_set_ui(2);
   puzzle->t = mpi_new(0);
   puzzle->phi_n = mpi_new(0);
-  puzzle->key_bn = mpi_new(0);
   puzzle->b = mpi_new(0);
 
   // n = p * q
@@ -67,13 +78,16 @@ time_lock_puzzle *time_lock_puzzle_alloc(void) {
   mpi_sub_ui(tmp2, puzzle->q, 1);
   mpi_mul(puzzle->phi_n, tmp1, tmp2);
 
+  // key_bn
+  puzzle->key_bn = mpi_read_raw_data(puzzle->key, sizeof(puzzle->key));
+
   mpi_free(tmp1);
   mpi_free(tmp2);
 
   return puzzle;
 }
 
-void time_lock_puzzle_free(time_lock_puzzle *puzzle) {
+void time_lock_puzzle_ctx_free(time_lock_puzzle_ctx *puzzle) {
   if (puzzle == NULL) return;
 
   crypto_free_sync_skcipher(puzzle->tfm);
@@ -89,7 +103,7 @@ void time_lock_puzzle_free(time_lock_puzzle *puzzle) {
 }
 
 void time_lock_puzzle_encrypt(
-    time_lock_puzzle *puzzle, int T, uint8_t *msg, size_t msg_len,
+    time_lock_puzzle_ctx *puzzle, int T, uint8_t *msg, size_t msg_len,
     uint8_t *enc_msg, uint8_t *enc_key, size_t *enc_key_len) {
   int ret;
   MPI tmp1 = NULL;
@@ -113,7 +127,7 @@ void time_lock_puzzle_encrypt(
     goto out;
   }
 
-  // t = T * S
+  // t = T * S / 1000
   // tmp1 = T, tmp2 = S
   tmp1 = mpi_alloc_set_ui(T);
   tmp2 = mpi_alloc_set_ui(puzzle->S);
@@ -147,7 +161,7 @@ out:
 }
 
 void time_lock_puzzle_decrypt(
-    time_lock_puzzle *puzzle, uint8_t *enc_msg, size_t enc_msg_len,
+    time_lock_puzzle_ctx *puzzle, uint8_t *enc_msg, size_t enc_msg_len,
     uint8_t *enc_key, size_t enc_key_len, uint8_t *dec_msg) {
   int ret;
   MPI tmp1 = NULL;
@@ -221,4 +235,44 @@ out:
   mpi_free(dec_key_bn);
 
   kfree(dec_key);
+}
+
+int time_lock_puzzle_generate(
+    time_lock_puzzle_ctx *puzzle, int T, time_lock_puzzle *payload,
+    uint64_t *solution) {
+  int ret;
+  size_t enc_key_len = 0;
+
+  // generate a random number
+  get_random_bytes(solution, sizeof(uint64_t));
+  memcpy(puzzle->msg, solution, sizeof(uint64_t));
+
+  // time-lock encryption over it
+  time_lock_puzzle_encrypt(
+      puzzle, T, puzzle->msg, sizeof(puzzle->msg), payload->Cm, payload->Ck,
+      &enc_key_len);
+  if (enc_key_len != sizeof(payload->Ck)) {
+    // encryption failed
+    pr_err("Wrong key size: %zu\n", enc_key_len);
+    return -1;
+  }
+
+  // derive payload
+  // n
+  ret = mpi_read_buffer(
+      puzzle->n, payload->n, sizeof(payload->n), (unsigned int *) &enc_key_len,
+      NULL);
+  if (ret != 0) {
+    // conversion failed
+    return -2;
+  }
+
+  // t
+  if (puzzle->t->nlimbs != 1) {
+    // `t` is too large
+    return -3;
+  }
+  payload->t = puzzle->t->d[0];
+
+  return 0;
 }
