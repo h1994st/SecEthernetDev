@@ -28,8 +28,6 @@ SLAVE_IF ?= enp0s8
 
 LINUX_DIR ?= /lib/modules/$(shell uname -r)/build
 
-#LINUX_DIR ?= /home/h1994st/Developer/Research/SecureEthernet/linux-5.4
-
 all:
 	$(MAKE) -C $(LINUX_DIR) M=$(PWD) modules EXTRA_CFLAGS="$(MY_CFLAGS)"
 clean:

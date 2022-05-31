@@ -107,7 +107,7 @@ function(add_kernel_module)
 
   # Add a dummy target for CLion IDE
   set(LKM_DUMMY_TARGET ${LKM_TARGET_NAME}_dummy)
-  add_library(${LKM_DUMMY_TARGET}
+  add_library(${LKM_DUMMY_TARGET} EXCLUDE_FROM_ALL
     ${LKM_TARGET_SRCS})
   target_include_directories(${LKM_DUMMY_TARGET}
     PRIVATE ${LKM_INCLUDE_DIRS})

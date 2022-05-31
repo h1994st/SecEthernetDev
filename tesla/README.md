@@ -1,5 +1,4 @@
-TESLA Protocol
-===
+# TESLA Protocol
 
 - Original source codes of TESLA: <http://users.ece.cmu.edu/~adrian/tesla/tesla.taz>
 - Replace Makefile with CMake
